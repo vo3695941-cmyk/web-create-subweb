@@ -9,36 +9,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const previewZone = document.getElementById("preview-zone");
     const previewIframe = document.getElementById("preview-iframe");
 
-    // Lấy URL sạch của trang hiện tại (Bảo đảm hoạt động đúng trên GitHub Pages)
+    // Lấy đường dẫn thư mục gốc hiện tại (Ví dụ: https://github.io)
     const baseUrl = window.location.origin + window.location.pathname;
+    
+    // Tự động định vị file preview.html nằm chung thư mục
+    const previewUrl = baseUrl.endsWith('/') ? baseUrl + 'preview.html' : baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1) + 'preview.html';
 
-    // BƯỚC 1: GIẢI MÃ VÀ HIỂN THỊ WEB CON (Khi có tham số ?web= trên link)
-    const urlParams = new URLSearchParams(window.location.search);
-    const webData = urlParams.get('web');
-
-    if (webData) {
-        try {
-            // Giải mã an toàn chuỗi Base64 và Unicode (Khắc phục lỗi chữ đỏ)
-            const decodedHtml = decodeURIComponent(atob(webData.replace(/-/g, '+').replace(/_/g, '/')));
-            
-            // Ghi đè toàn bộ nội dung trang bằng mã HTML đã được dán
-            document.open();
-            document.write(decodedHtml);
-            document.close();
-            return; // Dừng chạy trình tạo web
-        } catch (e) {
-            console.error("Lỗi dựng trang: ", e);
-            document.body.innerHTML = `
-                <div style="font-family:sans-serif; text-align:center; padding:50px; color:#e74c3c;">
-                    <h2>❌ Lỗi: Không thể khởi dựng mã HTML này!</h2>
-                    <p>Đường dẫn có thể đã bị thiếu ký tự khi sao chép hoặc chứa mã không tương thích.</p>
-                </div>
-            `;
-            return;
-        }
-    }
-
-    // BƯỚC 2: MÃ HÓA VÀ XUẤT BẢN WEBSITE MỚI (Khi nhấn nút)
+    // XỬ LÝ SỰ KIỆN KHI BẤM NÚT "XUẤT BẢN WEB"
     btnExport.addEventListener("click", () => {
         const tenWeb = webNameInput.value.trim();
         let maHtml = webHtmlTextarea.value.trim();
@@ -50,7 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const tieuDe = tenWeb === "" ? "Website Tự Tạo" : tenWeb;
 
-        // Tự động chuẩn hóa khung nếu người dùng dán code thiếu thẻ bọc ngoài
+        // Tự động bổ sung các thẻ bao ngoài nếu người dùng dán thiếu code
         if (!maHtml.toLowerCase().includes("<html") && !maHtml.toLowerCase().includes("<body")) {
             maHtml = `<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>${tieuDe}</title>\n</head>\n<body>\n${maHtml}\n</body>\n</html>`;
         } else if (!maHtml.toLowerCase().includes("charset")) {
@@ -58,16 +35,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         try {
-            // Thực hiện chuyển đổi chuỗi HTML sang dạng an toàn với các ký tự đặc biệt
+            // Mã hóa chuỗi HTML sang dạng Base64 an toàn cho URL
             const safeString = encodeURIComponent(maHtml);
+            const base64Result = btoa(safeString);
             
-            // Mã hóa chuỗi sang Base64 chuẩn hóa (Loại bỏ các ký tự gây lỗi URL)
-            let base64Result = btoa(safeString);
-            
-            // Tạo liên kết rút gọn hoàn chỉnh
-            const linkHoanChinh = `${baseUrl}?web=${base64Result}`;
+            // TẠO LINK RÚT GỌN TRỎ THẲNG ĐẾN FILE PREVIEW.HTML
+            const linkHoanChinh = `${previewUrl}?web=${base64Result}`;
 
-            // Đưa link ra khung hiển thị kết quả
+            // Hiển thị kết quả ra màn hình
             shortLinkInput.value = linkHoanChinh;
             linkRun.href = linkHoanChinh;
             resultBox.style.display = "block";
@@ -77,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // BƯỚC 3: XEM TRƯỚC TRỰC TIẾP QUA IFRAME
+    // XEM TRƯỚC TRỰC TIẾP QUA IFRAME TRÊN TRANG CHỦ
     if (btnPreviewLocal) {
         btnPreviewLocal.addEventListener("click", () => {
             let maHtml = webHtmlTextarea.value.trim();
