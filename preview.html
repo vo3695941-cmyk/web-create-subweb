@@ -11,34 +11,48 @@
 </head>
 <body>
 
-    <div id="loader" class="loading">⏳ Đang khởi tạo website con...</div>
+    <div id="loader" class="loading">⏳ Đang giải nén và tải website con...</div>
 
     <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            // Lấy tham số mã hóa từ URL (?web=...)
+        document.addEventListener("DOMContentLoaded", async () => {
             const urlParams = new URLSearchParams(window.location.search);
-            const webData = urlParams.get('web');
+            // Link mới sử dụng tham số ?w= để phân biệt với hệ thống cũ
+            const compressedData = urlParams.get('w');
 
-            if (webData) {
+            if (compressedData) {
                 try {
-                    // Giải mã an toàn chuỗi Base64 và Unicode
-                    const decodedHtml = decodeURIComponent(atob(webData.replace(/-/g, '+').replace(/_/g, '/')));
+                    // Khôi phục các ký tự Base64 chuẩn từ URL
+                    let base64 = compressedData.replace(/-/g, '+').replace(/_/g, '/');
+                    while (base64.length % 4) { base64 += '='; }
                     
-                    // Xóa thông báo đang tải và ghi đè toàn bộ bằng mã HTML được dán
+                    // Giải mã từ Base64 về dạng chuỗi nhị phân (Binary)
+                    const binString = atob(base64);
+                    const byteArray = Uint8Array.from(binString, (m) => m.charCodeAt(0));
+                    
+                    // Thực hiện giải nén luồng dữ liệu Gzip (DecompressionStream)
+                    const ds = new DecompressionStream('gzip');
+                    const writer = ds.writable.getWriter();
+                    writer.write(byteArray);
+                    writer.close();
+                    
+                    const outputBuffer = await new Response(ds.readable).arrayBuffer();
+                    const decodedHtml = new TextDecoder().decode(outputBuffer);
+                    
+                    // Ghi đè toàn bộ code gốc đã đan hoàn chỉnh lên màn hình
                     document.open();
                     document.write(decodedHtml);
                     document.close();
                 } catch (e) {
-                    console.error("Lỗi dựng trang: ", e);
+                    console.error("Lỗi giải nén: ", e);
                     document.getElementById("loader").innerHTML = `
-                        <h2 style="color:#e74c3c;">❌ Lỗi: Không thể khởi dựng mã HTML!</h2>
-                        <p>Đường dẫn có thể đã bị sao chép thiếu ký tự hoặc chứa mã không tương thích.</p>
+                        <h2 style="color:#e74c3c;">❌ Lỗi: Không thể giải nén liên kết này!</h2>
+                        <p>Link có thể đã bị sao chép thiếu ký tự hoặc định dạng không tương thích.</p>
                     `;
                 }
             } else {
                 document.getElementById("loader").innerHTML = `
-                    <h2 style="color:#e74c3c;">⚠️ Cảnh báo: Không tìm thấy dữ liệu trang web!</h2>
-                    <p>Vui lòng sử dụng link được tạo ra từ trang chủ.</p>
+                    <h2 style="color:#e74c3c;">⚠️ Cảnh báo: Không tìm thấy dữ liệu!</h2>
+                    <p>Vui lòng truy cập bằng đường link được tạo ra từ trang chủ.</p>
                 `;
             }
         });
