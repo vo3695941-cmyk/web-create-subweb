@@ -9,10 +9,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const previewZone = document.getElementById("preview-zone");
     const previewIframe = document.getElementById("preview-iframe");
 
-    // Lấy URL sạch hiện tại của trang
-    const baseUrl = window.location.href.split('?').split('#');
+    // FIX BUG: Lấy URL gốc chính xác, loại bỏ các tham số ? và # phía sau một cách an toàn
+    const baseUrl = window.location.origin + window.location.pathname;
 
-    // BƯỚC 1: KIỂM TRA LINK (Nếu người dùng đang click mở một trang con đã mã hóa)
+    // BƯỚC 1: KIỂM TRA LINK (Nếu người dùng đang mở một trang con đã mã hóa)
     const urlParams = new URLSearchParams(window.location.search);
     const webData = urlParams.get('web');
 
@@ -59,7 +59,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Chuẩn hóa và mã hóa Base64 an toàn cho mọi ký tự đặc biệt (kể cả tiếng Việt có dấu)
         const chuoiMaHoa = btoa(unescape(encodeURIComponent(JSON.stringify(dataObject))));
 
-        // Tạo ra link rút gọn chứa toàn bộ nội dung web con
+        // Tạo ra link chứa toàn bộ nội dung web con
         const linkHoanChinh = `${baseUrl}?web=${chuoiMaHoa}`;
 
         // Hiển thị kết quả ra màn hình cho người dùng copy
@@ -69,7 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
         previewZone.style.display = "none"; // Ẩn xem thử cũ đi
     });
 
-    // BƯỚC 3: XỬ LÝ SỰ KIỆN BẤM "XEM NHANH BÊN DƯỚI" (Dùng iframe để cô lập mã, không lo lag)
+    // BƯỚC 3: XỬ LÝ SỰ KIỆN BẤM "XEM NHANH BÊN DƯỚI"
     btnPreviewLocal.addEventListener("click", () => {
         let maHtml = webHtmlTextarea.value.trim();
         
