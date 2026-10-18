@@ -9,8 +9,22 @@ document.addEventListener("DOMContentLoaded", () => {
     const previewZone = document.getElementById("preview-zone");
     const previewIframe = document.getElementById("preview-iframe");
 
-    // FIX BUG: Lấy URL gốc chính xác, loại bỏ các tham số ? và # phía sau một cách an toàn
+    // Lấy URL gốc an toàn
     const baseUrl = window.location.origin + window.location.pathname;
+
+    // Hàm mã hóa Unicode sang Base64 chuẩn mã hóa hiện đại (Sửa lỗi liệt nút)
+    function encodeData(str) {
+        const bytes = new TextEncoder().encode(str);
+        const binString = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
+        return btoa(binString);
+    }
+
+    // Hàm giải mã Base64 về Unicode chuẩn
+    function decodeData(base64) {
+        const binString = atob(base64);
+        const bytes = Uint8Array.from(binString, (m) => m.charCodeAt(0));
+        return new TextDecoder().decode(bytes);
+    }
 
     // BƯỚC 1: KIỂM TRA LINK (Nếu người dùng đang mở một trang con đã mã hóa)
     const urlParams = new URLSearchParams(window.location.search);
@@ -18,18 +32,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (webData) {
         try {
-            // Giải mã Base64 ngược lại thành chuỗi Object ban đầu
-            const decodedData = JSON.parse(decodeURIComponent(escape(atob(webData))));
+            // Giải mã an toàn không sợ lỗi ký tự đặc biệt
+            const decodedString = decodeData(webData);
+            const decodedData = JSON.parse(decodedString);
             
-            // Xóa sạch nội dung trình tạo web chính, ghi đè toàn bộ bằng code HTML được dán
+            // Ghi đè giao diện bằng code HTML được dán
             document.open();
             document.write(decodedData.html);
             document.close();
             
-            // Cập nhật lại tiêu đề trang
             document.title = decodedData.name || "Web Con Tự Động";
-            return; // Ngắt script, không chạy phần tạo web nữa
+            return; 
         } catch (e) {
+            console.error(e);
             document.body.innerHTML = "<h2 style='color:red; text-align:center; margin-top:50px;'>Lỗi: Đường dẫn web này không hợp lệ hoặc đã bị hỏng dữ liệu!</h2>";
             return;
         }
@@ -45,48 +60,51 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // Nếu người dùng quên không nhập tiêu đề, tự động lấy mặc định
         const tieuDe = tenWeb === "" ? "Website Tự Tạo" : tenWeb;
 
-        // Nếu mã dán vào không có khung HTML chuẩn, hệ thống tự động bọc lại để tránh lỗi hiển thị
+        // Tự động bổ sung thẻ meta UTF-8 nếu người dùng dán thiếu để không lỗi font tiếng Việt
         if (!maHtml.toLowerCase().includes("<html") && !maHtml.toLowerCase().includes("<body")) {
             maHtml = `<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>${tieuDe}</title>\n</head>\n<body>\n${maHtml}\n</body>\n</html>`;
+        } else if (!maHtml.toLowerCase().includes("charset")) {
+            maHtml = maHtml.replace("<head>", "<head>\n<meta charset='UTF-8'>");
         }
 
-        // Đóng gói dữ liệu thành Object
-        const dataObject = { name: tieuDe, html: maHtml };
-        
-        // Chuẩn hóa và mã hóa Base64 an toàn cho mọi ký tự đặc biệt (kể cả tiếng Việt có dấu)
-        const chuoiMaHoa = btoa(unescape(encodeURIComponent(JSON.stringify(dataObject))));
+        try {
+            // Đóng gói dữ liệu thành Object và mã hóa bằng hàm mới cực mạnh
+            const dataObject = { name: tieuDe, html: maHtml };
+            const chuoiMaHoa = encodeData(JSON.stringify(dataObject));
 
-        // Tạo ra link chứa toàn bộ nội dung web con
-        const linkHoanChinh = `${baseUrl}?web=${chuoiMaHoa}`;
+            // Tạo liên kết hoàn chỉnh
+            const linkHoanChinh = `${baseUrl}?web=${chuoiMaHoa}`;
 
-        // Hiển thị kết quả ra màn hình cho người dùng copy
-        shortLinkInput.value = linkHoanChinh;
-        linkRun.href = linkHoanChinh;
-        resultBox.style.display = "block";
-        previewZone.style.display = "none"; // Ẩn xem thử cũ đi
+            // Hiển thị kết quả ra màn hình
+            shortLinkInput.value = linkHoanChinh;
+            linkRun.href = linkHoanChinh;
+            resultBox.style.display = "block";
+            previewZone.style.display = "none";
+        } catch (error) {
+            alert("Có lỗi xảy ra trong quá trình đóng gói code: " + error.message);
+        }
     });
 
     // BƯỚC 3: XỬ LÝ SỰ KIỆN BẤM "XEM NHANH BÊN DƯỚI"
-    btnPreviewLocal.addEventListener("click", () => {
-        let maHtml = webHtmlTextarea.value.trim();
-        
-        if (maHtml === "") {
-            alert("Không có mã HTML nào để xem thử!");
-            return;
-        }
+    if (btnPreviewLocal) {
+        btnPreviewLocal.addEventListener("click", () => {
+            let maHtml = webHtmlTextarea.value.trim();
+            
+            if (maHtml === "") {
+                alert("Không có mã HTML nào để xem thử!");
+                return;
+            }
 
-        previewZone.style.display = "block";
-        
-        // Nạp thẳng mã HTML vào khung iframe để chạy thử độc lập tại chỗ
-        const doc = previewIframe.contentWindow.document;
-        doc.open();
-        doc.write(maHtml);
-        doc.close();
+            previewZone.style.display = "block";
+            
+            const doc = previewIframe.contentWindow.document;
+            doc.open();
+            doc.write(maHtml);
+            doc.close();
 
-        // Cuộn màn hình xuống vùng xem thử
-        previewZone.scrollIntoView({ behavior: 'smooth' });
-    });
+            previewZone.scrollIntoView({ behavior: 'smooth' });
+        });
+    }
 });
