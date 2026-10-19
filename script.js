@@ -76,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let fileHoanChinh = '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>' + tieuDe + '</title>\n';
         
         if (py.length > 0) {
-            fileHoanChinh += '<script src="https://jsdelivr.net"><\/script>\n';
+            fileHoanChinh += '<script src="https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.js"><\/script>\n';
         }
         if (css.length > 0) {
             fileHoanChinh += '<style>\n' + css + '\n</style>\n';
