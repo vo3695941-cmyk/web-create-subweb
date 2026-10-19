@@ -15,7 +15,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const baseUrl = window.location.origin + window.location.pathname;
     const previewUrl = baseUrl.endsWith('/') ? baseUrl + 'preview.html' : baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1) + 'preview.html';
 
-    // Mã hóa dữ liệu dạng chuỗi thô, không dùng hàm đồng bộ chặn luồng của mobile
     function encodeDataSafe(str) {
         const bytes = new TextEncoder().encode(str);
         const binString = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
@@ -23,25 +22,30 @@ document.addEventListener("DOMContentLoaded", () => {
         return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+\$/, '');
     }
 
-    // Hàm sinh đoạn mã JavaScript xử lý nạp Pyodide chạy ngầm (Đã loại bỏ chuỗi mẫu gây treo)
+    // Hàm sinh đoạn mã JavaScript xử lý nạp Pyodide chạy ngầm
     function sinhScriptPython(codePy) {
-        // Chuẩn hóa và làm sạch code Python trước khi nhúng ngầm
         const cleanPy = codePy.split('`').join('\\`').split('\$').join('\\$');
         
         return '<script>\n' +
             'async function main(){\n' +
-            '    const outDiv = document.getElementById("python-output");\n' +
-            '    if(outDiv) outDiv.innerText = "⏳ Đang khởi tạo môi trường Python...";\n' +
+            '    // NÂNG CẤP: Tự động kiểm tra xem cấu trúc HTML có sẵn ô chứa chưa\n' +
+            '    let outDiv = document.getElementById("python-output");\n' +
+            '    if(!outDiv) {\n' +
+            '        // Nếu tác giả quên không ghi thẻ div, JS tự tạo một ô Terminal đen ở cuối trang\n' +
+            '        outDiv = document.createElement("div");\n' +
+            '        outDiv.id = "python-output";\n' +
+            '        outDiv.style.cssText = "margin:20px; padding:15px; background:#1e1e1e; color:#00ff00; font-family:monospace; border-radius:5px; white-space:pre-wrap; text-align:left; box-shadow:0 4px 10px rgba(0,0,0,0.3);";\n' +
+            '        document.body.appendChild(outDiv);\n' +
+            '    }\n' +
+            '    outDiv.innerText = "⏳ Đang khởi tạo môi trường Python...";\n' +
             '    try {\n' +
             '        let pyodide = await loadPyodide();\n' +
             '        pyodide.setStdout({ batched: (msg) => {\n' +
-            '            if(outDiv) {\n' +
-            '                if(outDiv.innerText.includes("Đang chờ") || outDiv.innerText.includes("khởi tạo")) outDiv.innerText = "";\n' +
-            '                outDiv.innerText += msg + "\\n";\n' +
-            '            } else { console.log(msg); }\n' +
+            '            if(outDiv.innerText.includes("Đang chờ") || outDiv.innerText.includes("khởi tạo")) outDiv.innerText = "";\n' +
+            '            outDiv.innerText += msg + "\\n";\n' +
             '        }});\n' +
             '        const rawPy = `' + cleanPy + '`;\n' +
-            '        if(outDiv) outDiv.innerText = "⏳ Đang quét tìm thư viện ngoại vi...";\n' +
+            '        outDiv.innerText = "⏳ Đang quét tìm thư viện ngoại vi...";\n' +
             '        const matches = rawPy.match(/(?:^|\\n)\\s*(?:import|from)\\s+([a-zA-Z0-9_]+)/g) || [];\n' +
             '        let packages = [];\n' +
             '        matches.forEach(m => {\n' +
@@ -50,13 +54,13 @@ document.addEventListener("DOMContentLoaded", () => {
             '            if(p && !builtIns.includes(p) && !packages.includes(p)) packages.push(p);\n' +
             '        });\n' +
             '        if(packages.length > 0){\n' +
-            '            if(outDiv) outDiv.innerText = "⏳ Đang tải thư viện: " + packages.join(", ") + "...";\n' +
+            '            outDiv.innerText = "⏳ Đang tải thư viện: " + packages.join(", ") + "...";\n' +
             '            await pyodide.loadPackage(packages);\n' +
             '        }\n' +
-            '        if(outDiv) outDiv.innerText = "⏳ Đang thực thi mã...";\n' +
+            '        outDiv.innerText = "⏳ Đang thực thi mã...";\n' +
             '        await pyodide.runPythonAsync(rawPy);\n' +
             '    } catch(err) {\n' +
-            '        if(outDiv) outDiv.innerHTML = "<span style=\'color:red\'>❌ Lỗi biên dịch:\\n" + err + "</span>";\n' +
+            '        outDiv.innerHTML = "<span style=\'color:#ff4a4a\'>❌ Lỗi biên dịch:\\n" + err + "</span>";\n' +
             '    }\n' +
             '}\n' +
             'main();\n' +
