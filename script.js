@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const webCssTextarea = document.getElementById("web-css");
     const webJsTextarea = document.getElementById("web-js");
     const webPyTextarea = document.getElementById("web-py");
+    const consoleToggleSelect = document.getElementById("console-toggle");
     const resultBox = document.getElementById("result-box");
     const shortLinkInput = document.getElementById("short-link");
     const linkRun = document.getElementById("link-run");
@@ -22,35 +23,47 @@ document.addEventListener("DOMContentLoaded", () => {
         return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+\$/, '');
     }
 
-    // NÂNG CẤP: Hàm xử lý đóng gói và thực thi nhiều lệnh Python liên tiếp không lỗi cấu trúc
-    function sinhScriptPython(codePy) {
-        // Mã hóa Base64 riêng đoạn code Python để bảo vệ các ký tự xuống dòng và khoảng trắng thụt lề
+    // NÂNG CẤP: Hàm sinh lệnh Python hỗ trợ bật/tắt khung Console linh hoạt
+    function sinhScriptPython(codePy, consoleMode) {
         const base64Python = encodeDataSafe(codePy);
         
         return '<script>\n' +
             'async function main(){\n' +
-            '    let outDiv = document.getElementById("python-output");\n' +
-            '    if(!outDiv) {\n' +
-            '        outDiv = document.createElement("div");\n' +
-            '        outDiv.id = "python-output";\n' +
-            '        outDiv.style.cssText = "margin:20px; padding:15px; background:#1e1e1e; color:#00ff00; font-family:monospace; border-radius:5px; white-space:pre-wrap; text-align:left; box-shadow:0 4px 10px rgba(0,0,0,0.3); line-height:1.5;";\n' +
-            '        document.body.appendChild(outDiv);\n' +
+            '    const mode = "' + consoleMode + '";\n' +
+            '    let outDiv = null;\n' +
+            '    \n' +
+            '    // NẾU BẬT CONSOLE: Khởi tạo khung hiển thị hộp đen Terminal\n' +
+            '    if(mode === "on") {\n' +
+            '        outDiv = document.getElementById("python-output");\n' +
+            '        if(!outDiv) {\n' +
+            '            outDiv = document.createElement("div");\n' +
+            '            outDiv.id = "python-output";\n' +
+            '            outDiv.style.cssText = "margin:20px; padding:15px; background:#1e1e1e; color:#00ff00; font-family:monospace; border-radius:5px; white-space:pre-wrap; text-align:left; box-shadow:0 4px 10px rgba(0,0,0,0.3); line-height:1.5;";\n' +
+            '            document.body.appendChild(outDiv);\n' +
+            '        }\n' +
+            '        outDiv.innerText = "⏳ [Hệ thống] Đang kết nối lõi Console...";\n' +
             '    }\n' +
-            '    outDiv.innerText = "⏳ Đang khởi tạo môi trường Python...";\n' +
+            '    \n' +
             '    try {\n' +
             '        let pyodide = await loadPyodide();\n' +
+            '        \n' +
+            '        // Cấu hình luồng hứng dữ liệu dựa theo chế độ Switch Bật/Tắt\n' +
             '        pyodide.setStdout({ batched: (msg) => {\n' +
-            '            if(outDiv.innerText.includes("Đang chờ") || outDiv.innerText.includes("khởi tạo")) outDiv.innerText = "";\n' +
-            '            outDiv.innerText += msg + "\\n";\n' +
+            '            if(mode === "on" && outDiv) {\n' +
+            '                if(outDiv.innerText.includes("Đang chờ") || outDiv.innerText.includes("khởi tạo") || outDiv.innerText.includes("kết nối")) outDiv.innerText = "";\n' +
+            '                outDiv.innerText += "[LOG]: " + msg + "\\n";\n' + // Ghi lại hành động log rõ ràng
+            '            } else {\n' +
+            '                // Khi tắt Console, kết quả lệnh print() sẽ xuất trực tiếp ngầm lên console trình duyệt\n' +
+            '                console.log("%c[Python Screen Run]: " + msg, "color: #2ecc71; font-weight: bold;");\n' +
+            '            }\n' +
             '        }});\n' +
             '        \n' +
-            '        // Giải mã chuỗi nhiều lệnh Python thô từ Base64 an toàn tuyệt đối\n' +
             '        const b64 = "' + base64Python + '";\n' +
             '        const binStr = atob(b64.replace(/-/g, "+").replace(/_/g, "/"));\n' +
             '        const bytes = Uint8Array.from(binStr, m => m.charCodeAt(0));\n' +
             '        const rawPy = new TextDecoder().decode(bytes);\n' +
             '        \n' +
-            '        outDiv.innerText = "⏳ Đang quét tìm thư viện ngoại vi...";\n' +
+            '        if(mode === "on" && outDiv) outDiv.innerText = "⏳ [Hệ thống] Quét gói thư viện...";\n' +
             '        const matches = rawPy.match(/(?:^|\\n)\\s*(?:import|from)\\s+([a-zA-Z0-9_]+)/g) || [];\n' +
             '        let packages = [];\n' +
             '        matches.forEach(m => {\n' +
@@ -59,24 +72,28 @@ document.addEventListener("DOMContentLoaded", () => {
             '            if(p && !builtIns.includes(p) && !packages.includes(p)) packages.push(p);\n' +
             '        });\n' +
             '        if(packages.length > 0){\n' +
-            '            outDiv.innerText = "⏳ Đang tải thư viện: " + packages.join(", ") + "...";\n' +
+            '            if(mode === "on" && outDiv) outDiv.innerText = "⏳ Tải thư viện: " + packages.join(", ");\n' +
             '            await pyodide.loadPackage(packages);\n' +
             '        }\n' +
-            '        outDiv.innerText = "⏳ Đang thực thi đa lệnh Python...";\n' +
+            '        if(mode === "on" && outDiv) outDiv.innerText = "⏳ [Hệ thống] Đang thực thi đa lệnh...";\n' +
             '        await pyodide.runPythonAsync(rawPy);\n' +
             '    } catch(err) {\n' +
-            '        outDiv.innerHTML = "<span style=\'color:#ff4a4a\'>❌ Lỗi biên dịch:\\n" + err + "</span>";\n' +
+            '        if(mode === "on" && outDiv) {\n' +
+            '            outDiv.innerHTML = "<span style=\'color:#ff4a4a\'>❌ Lỗi biên dịch:\\n" + err + "</span>";\n' +
+            '        } else {\n' +
+            '            console.error("Lỗi chạy ẩn Python: ", err);\n' +
+            '        }\n' +
             '    }\n' +
             '}\n' +
             'main();\n' +
             '<\/script>\n';
     }
 
-    function trộnCode(tieuDe, html, css, js, py) {
+    function trộnCode(tieuDe, html, css, js, py, consoleMode) {
         let fileHoanChinh = '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>' + tieuDe + '</title>\n';
         
         if (py.length > 0) {
-            fileHoanChinh += '<script src="https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.js"><\/script>\n';
+            fileHoanChinh += '<script src="https://jsdelivr.net"><\/script>\n';
         }
         if (css.length > 0) {
             fileHoanChinh += '<style>\n' + css + '\n</style>\n';
@@ -84,7 +101,7 @@ document.addEventListener("DOMContentLoaded", () => {
         fileHoanChinh += '</head>\n<body>\n' + html + '\n';
         
         if (py.length > 0) {
-            fileHoanChinh += sinhScriptPython(py);
+            fileHoanChinh += sinhScriptPython(py, consoleMode);
         }
         if (js.length > 0) {
             fileHoanChinh += '<script>\n' + js + '\n<\/script>\n';
@@ -100,6 +117,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const css = webCssTextarea ? webCssTextarea.value.trim() : "";
             const js = webJsTextarea ? webJsTextarea.value.trim() : "";
             const py = webPyTextarea ? webPyTextarea.value.trim() : "";
+            const consoleMode = consoleToggleSelect ? consoleToggleSelect.value : "on";
 
             if (html === "" && css === "" && js === "" && py === "") {
                 alert("Vui lòng nhập nội dung vào ít nhất một ô mã nguồn!");
@@ -107,7 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const tieuDe = tenWeb === "" ? "Website Tự Tạo" : tenWeb;
-            const codeDaTron = trộnCode(tieuDe, html, css, js, py);
+            const codeDaTron = trộnCode(tieuDe, html, css, js, py, consoleMode);
 
             try {
                 const chuoiMaHoa = encodeDataSafe(codeDaTron);
@@ -130,12 +148,13 @@ document.addEventListener("DOMContentLoaded", () => {
             const css = webCssTextarea ? webCssTextarea.value.trim() : "";
             const js = webJsTextarea ? webJsTextarea.value.trim() : "";
             const py = webPyTextarea ? webPyTextarea.value.trim() : "";
+            const consoleMode = consoleToggleSelect ? consoleToggleSelect.value : "on";
             
             if (previewZone && previewIframe) {
                 previewZone.style.display = "block";
                 const doc = previewIframe.contentWindow.document;
                 doc.open();
-                doc.write(trộnCode(tieuDe, html, css, js, py));
+                doc.write(trộnCode(tieuDe, html, css, js, py, consoleMode));
                 doc.close();
                 previewZone.scrollIntoView({ behavior: 'smooth' });
             }
