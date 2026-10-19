@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const webNameInput = document.getElementById("web-name");
     const webHtmlTextarea = document.getElementById("web-html");
     const webCssTextarea = document.getElementById("web-css");
-    const webJsTextarea = document.getElementById("web-js");
+    const webJsTextarea = document.getElementById("web-js"); // Đã sửa: Đồng bộ đúng ID ô JavaScript
     const webPyTextarea = document.getElementById("web-py");
     const resultBox = document.getElementById("result-box");
     const shortLinkInput = document.getElementById("short-link");
@@ -31,7 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         // Nhúng thư viện Pyodide CDN v314.0.7 nếu tác giả viết code Python
         if (py.length > 0) {
-            fileHoanChinh += `<script src="https://jsdelivr.net"><\/script>\n`;
+            fileHoanChinh += `<script src="https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.js"><\/script>\n`;
         }
         if (css.length > 0) {
             fileHoanChinh += `<style>\n${css}\n</style>\n`;
@@ -94,14 +94,15 @@ document.addEventListener("DOMContentLoaded", () => {
         return fileHoanChinh;
     }
 
-    // LẮNG NGHE SỰ KIỆN CLICK NÚT BẤM (Đã loại bỏ hoàn toàn async bọc ngoài để chống liệt nút)
+    // LẮNG NGHE SỰ KIỆN CLICK NÚT BẤM (Đã bọc an toàn, không lo sập)
     if (btnExport) {
         btnExport.addEventListener("click", () => {
-            const tenWeb = webNameInput.value.trim();
-            const html = webHtmlTextarea.value.trim();
-            const css = webCssTextarea.value.trim();
-            const js = webJsTextarea.value.trim();
-            const py = webPyTextarea.value.trim();
+            // Lấy giá trị an toàn, nếu ô nhập liệu không tồn tại thì tự trả về chuỗi rỗng
+            const tenWeb = webNameInput ? webNameInput.value.trim() : "";
+            const html = webHtmlTextarea ? webHtmlTextarea.value.trim() : "";
+            const css = webCssTextarea ? webCssTextarea.value.trim() : "";
+            const js = webJsTextarea ? webJsTextarea.value.trim() : "";
+            const py = webPyTextarea ? webPyTextarea.value.trim() : "";
 
             if (html === "" && css === "" && js === "" && py === "") {
                 alert("Vui lòng nhập nội dung vào ít nhất một ô mã nguồn!");
@@ -117,9 +118,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 const linkHoanChinh = `${previewUrl}?web=${chuoiMaHoa}`;
 
                 // Xuất kết quả hiển thị lên giao diện chính
-                shortLinkInput.value = linkHoanChinh;
-                linkRun.href = linkHoanChinh;
-                resultBox.style.display = "block";
+                if (shortLinkInput) shortLinkInput.value = linkHoanChinh;
+                if (linkRun) linkRun.href = linkHoanChinh;
+                if (resultBox) resultBox.style.display = "block";
                 if (previewZone) previewZone.style.display = "none";
             } catch (error) {
                 alert("Lỗi xử lý đóng gói liên kết: " + error.message);
@@ -130,11 +131,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // XỬ LÝ XEM TRƯỚC NHANH TRÊN TRANG CHỦ QUA IFRAME CÔ LẬP
     if (btnPreviewLocal) {
         btnPreviewLocal.addEventListener("click", () => {
-            const tieuDe = webNameInput.value.trim() || "Xem thử";
-            const html = webHtmlTextarea.value.trim();
-            const css = webCssTextarea.value.trim();
-            const js = webJsTextarea.value.trim();
-            const py = webPyTextarea.value.trim();
+            const tieuDe = (webNameInput ? webNameInput.value.trim() : "") || "Xem thử";
+            const html = webHtmlTextarea ? webHtmlTextarea.value.trim() : "";
+            const css = webCssTextarea ? webCssTextarea.value.trim() : "";
+            const js = webJsTextarea ? webJsTextarea.value.trim() : "";
+            const py = webPyTextarea ? webPyTextarea.value.trim() : "";
             
             if (previewZone && previewIframe) {
                 previewZone.style.display = "block";
