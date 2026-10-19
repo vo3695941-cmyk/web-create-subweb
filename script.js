@@ -37,8 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         if (py.length > 0) {
             // Tích hợp hệ thống nạp lõi Pyodide thông qua máy chủ phân phối CDN phiên bản mới v314.0.7
-            fileHoanChinh += `<script src="https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.js
-"><\/script>\n`;
+            fileHoanChinh += `<script src="https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.js"><\/script>\n`;
         }
         if (css.length > 0) {
             fileHoanChinh += `<style>\n${css}\n</style>\n`;
