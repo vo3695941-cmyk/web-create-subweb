@@ -11,48 +11,36 @@
 </head>
 <body>
 
-    <div id="loader" class="loading">⏳ Đang giải nén và tải website con...</div>
+    <div id="loader" class="loading">⏳ Đang khởi tạo website con...</div>
 
     <script>
-        document.addEventListener("DOMContentLoaded", async () => {
+        document.addEventListener("DOMContentLoaded", () => {
+            // ĐỒNG BỘ: Đổi sang lấy tham số ?web= trùng khớp hoàn toàn với file script.js mới
             const urlParams = new URLSearchParams(window.location.search);
-            // Link mới sử dụng tham số ?w= để phân biệt với hệ thống cũ
-            const compressedData = urlParams.get('w');
+            const webData = urlParams.get('web');
 
-            if (compressedData) {
+            if (webData) {
                 try {
-                    // Khôi phục các ký tự Base64 chuẩn từ URL
-                    let base64 = compressedData.replace(/-/g, '+').replace(/_/g, '/');
-                    while (base64.length % 4) { base64 += '='; }
+                    // Tiến hành giải mã an toàn chuỗi Base64 và Unicode tiếng Việt
+                    const binString = atob(webData.replace(/-/g, '+').replace(/_/g, '/'));
+                    const bytes = Uint8Array.from(binString, (m) => m.charCodeAt(0));
+                    const decodedHtml = new TextDecoder().decode(bytes);
                     
-                    // Giải mã từ Base64 về dạng chuỗi nhị phân (Binary)
-                    const binString = atob(base64);
-                    const byteArray = Uint8Array.from(binString, (m) => m.charCodeAt(0));
-                    
-                    // Thực hiện giải nén luồng dữ liệu Gzip (DecompressionStream)
-                    const ds = new DecompressionStream('gzip');
-                    const writer = ds.writable.getWriter();
-                    writer.write(byteArray);
-                    writer.close();
-                    
-                    const outputBuffer = await new Response(ds.readable).arrayBuffer();
-                    const decodedHtml = new TextDecoder().decode(outputBuffer);
-                    
-                    // Ghi đè toàn bộ code gốc đã đan hoàn chỉnh lên màn hình
+                    // Ghi đè toàn bộ nội dung mã nguồn gốc lên giao diện người xem
                     document.open();
                     document.write(decodedHtml);
                     document.close();
                 } catch (e) {
-                    console.error("Lỗi giải nén: ", e);
+                    console.error("Lỗi dựng trang: ", e);
                     document.getElementById("loader").innerHTML = `
-                        <h2 style="color:#e74c3c;">❌ Lỗi: Không thể giải nén liên kết này!</h2>
-                        <p>Link có thể đã bị sao chép thiếu ký tự hoặc định dạng không tương thích.</p>
+                        <h2 style="color:#e74c3c;">❌ Lỗi: Không thể khởi dựng mã HTML!</h2>
+                        <p>Đường dẫn có thể đã bị sao chép thiếu ký tự hoặc chứa mã không tương thích.</p>
                     `;
                 }
             } else {
                 document.getElementById("loader").innerHTML = `
-                    <h2 style="color:#e74c3c;">⚠️ Cảnh báo: Không tìm thấy dữ liệu!</h2>
-                    <p>Vui lòng truy cập bằng đường link được tạo ra từ trang chủ.</p>
+                    <h2 style="color:#e74c3c;">⚠️ Cảnh báo: Không tìm thấy dữ liệu trang web!</h2>
+                    <p>Vui lòng sử dụng đường link được tạo ra từ trang chủ.</p>
                 `;
             }
         });
