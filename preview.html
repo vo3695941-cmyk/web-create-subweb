@@ -11,11 +11,10 @@
 </head>
 <body>
 
-    <!-- Thông báo trạng thái ban đầu -->
     <div id="loader" class="loading">⏳ Đang giải nén cấu trúc website con...</div>
 
     <script>
-        document.addEventListener("DOMContentLoaded", () => {
+        document.addEventListener("DOMContentLoaded", async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const webData = urlParams.get('web');
 
@@ -26,83 +25,44 @@
                     const bytes = Uint8Array.from(binString, (m) => m.charCodeAt(0));
                     const decodedHtml = new TextDecoder().decode(bytes);
                     
-                    // 2. Dựng giao diện trang web con lên trước
+                    // 2. Dựng giao diện trang web con lên màn hình
                     document.open();
                     document.write(decodedHtml);
                     document.close();
 
-                    // 3. Đợi toàn bộ tài nguyên của web con tải xong để thực thi Python
-                    window.addEventListener("load", async () => {
-                        // Kiểm tra xem trang web con này có yêu cầu chạy Python hay không
-                        if (typeof loadPyodide === "function") {
-                            let outDiv = document.getElementById('python-output');
-                            
-                            // Nếu ở chế độ TẮT Console (Không có thẻ #python-output do script.js sinh ra)
-                            if (!outDiv) {
-                                // Tạo một thông báo trạng thái nhỏ trên đầu trang để người dùng biết hệ thống đang nạp
-                                const sysStatus = document.createElement("div");
-                                sysStatus.id = "py-sys-status";
-                                sysStatus.style.cssText = "position:fixed; top:10px; right:10px; padding:8px 12px; background:rgba(0,0,0,0.7); color:#fff; font-size:12px; border-radius:4px; z-index:99999;";
-                                sysStatus.innerText = "⏳ Đang nạp Python...";
-                                document.body.appendChild(sysStatus);
-                            } else {
-                                outDiv.innerText = '⏳ Đang khởi tạo lõi Python WebAssembly...';
-                            }
+                    // FIX LỖI TRẮNG MÀN HÌNH: Khởi chạy luồng hứng dữ liệu Python ngay lập tức sau khi dựng DOM
+                    const outDiv = document.getElementById('python-output');
+                    
+                    // Kiểm tra nếu ở chế độ TẮT Console (Không có thẻ #python-output)
+                    if (!outDiv && typeof loadPyodide === "function") {
+                        const sysStatus = document.createElement("div");
+                        sysStatus.id = "py-sys-status";
+                        sysStatus.style.cssText = "position:fixed; top:10px; right:10px; padding:8px 12px; background:rgba(0,0,0,0.8); color:#fff; font-size:12px; border-radius:4px; z-index:99999; font-family:sans-serif;";
+                        sysStatus.innerText = "⏳ Đang nạp Python...";
+                        document.body.appendChild(sysStatus);
+                    }
 
-                            try {
-                                // Kích hoạt lõi môi trường Pyodide
-                                let pyodide = await loadPyodide();
-                                
-                                // Đọc trạng thái xem có ô chứa hay không để quyết định luồng in chữ
-                                const checkDiv = document.getElementById('python-output');
-                                
-                                pyodide.setStdout({
-                                    batched: (msg) => {
-                                        const outputBox = document.getElementById('python-output');
-                                        if (outputBox) {
-                                            // Chế độ BẬT Console: In chữ vào hộp đen
-                                            if (outputBox.innerText.includes('⏳') || outputBox.innerText.includes('Đang')) {
-                                                outputBox.innerText = '';
-                                            }
-                                            outputBox.innerText += '[LOG]: ' + msg + '\n';
-                                        } else {
-                                            // CHẾ ĐỘ TẮT CONSOLE: TỰ ĐỘNG IN THẲNG CHỮ RA MÀN HÌNH DOCUMENT.BODY
-                                            const txtNode = document.createElement("p");
-                                            txtNode.style.cssText = "margin:10px 20px; font-family:sans-serif; font-size:16px; color:#333; text-align:left; white-space:pre-wrap;";
-                                            txtNode.innerText = msg;
-                                            document.body.appendChild(txtNode);
-                                        }
-                                    }
-                                });
-
-                                // Cập nhật trạng thái trước khi chạy mã nguồn
-                                const currentStatus = document.getElementById('py-sys-status');
-                                if (currentStatus) currentStatus.innerText = "⏳ Đang chạy script...";
-                                if (checkDiv) checkDiv.innerText = '⏳ Đang thực thi mã nguồn Python...';
-
-                                // Quá trình chạy ngầm mã nguồn Python sẽ tự kích hoạt tại đây thông qua tệp tin logic gộp
-                                
-                                // Sau khi chạy xong, tự động dọn dẹp các dòng chữ trạng thái nạp hệ thống để màn hình sạch sẽ
-                                const finalStatus = document.getElementById('py-sys-status');
-                                if (finalStatus) finalStatus.remove(); 
-                                
-                            } catch (pyErr) {
-                                const finalStatus = document.getElementById('py-sys-status');
-                                if (finalStatus) finalStatus.remove();
-                                
+                    // Định nghĩa hàm liên kết luồng xuất cho Pyodide khi chạy ngầm
+                    window.cauHinhPyodideStdout = function(pyodideInstance, mode) {
+                        pyodideInstance.setStdout({
+                            batched: (msg) => {
                                 const outputBox = document.getElementById('python-output');
                                 if (outputBox) {
-                                    outputBox.innerHTML = '<span style="color:red">❌ Lỗi biên dịch:\n' + pyErr + '</span>';
+                                    // Chế độ BẬT Console: Ghi vào hộp đen Terminal
+                                    if (outputBox.innerText.includes('⏳') || outputBox.innerText.includes('Khởi tạo') || outputBox.innerText.includes('Quét')) {
+                                        outputBox.innerText = '';
+                                    }
+                                    outputBox.innerText += '[LOG]: ' + msg + '\n';
                                 } else {
-                                    // In thông báo lỗi thẳng ra màn hình nếu chế độ tắt console bị lỗi
-                                    const errDiv = document.createElement("div");
-                                    errDiv.style.cssText = "color:red; margin:20px; font-weight:bold; text-align:left;";
-                                    errDiv.innerText = "❌ Lỗi Python: " + pyErr;
-                                    document.body.appendChild(errDiv);
+                                    // Chế độ TẮT Console: In trực tiếp văn bản vào document.body
+                                    const txtNode = document.createElement("p");
+                                    txtNode.style.cssText = "margin:10px 20px; font-family:sans-serif; font-size:16px; color:#333; text-align:left; white-space:pre-wrap;";
+                                    txtNode.innerText = msg;
+                                    document.body.appendChild(txtNode);
                                 }
                             }
-                        }
-                    });
+                        });
+                    };
 
                 } catch (e) {
                     console.error("Lỗi dựng trang: ", e);
