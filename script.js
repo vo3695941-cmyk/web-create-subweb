@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+\$/, '');
     }
 
-    // NÂNG CẤP: Hàm sinh lệnh Python hỗ trợ bật/tắt khung Console linh hoạt
+    // CẬP NHẬT: Xử lý in thẳng ra trang web khi tắt console, sửa lỗi dính chữ trạng thái
     function sinhScriptPython(codePy, consoleMode) {
         const base64Python = encodeDataSafe(codePy);
         
@@ -32,7 +32,6 @@ document.addEventListener("DOMContentLoaded", () => {
             '    const mode = "' + consoleMode + '";\n' +
             '    let outDiv = null;\n' +
             '    \n' +
-            '    // NẾU BẬT CONSOLE: Khởi tạo khung hiển thị hộp đen Terminal\n' +
             '    if(mode === "on") {\n' +
             '        outDiv = document.getElementById("python-output");\n' +
             '        if(!outDiv) {\n' +
@@ -41,20 +40,23 @@ document.addEventListener("DOMContentLoaded", () => {
             '            outDiv.style.cssText = "margin:20px; padding:15px; background:#1e1e1e; color:#00ff00; font-family:monospace; border-radius:5px; white-space:pre-wrap; text-align:left; box-shadow:0 4px 10px rgba(0,0,0,0.3); line-height:1.5;";\n' +
             '            document.body.appendChild(outDiv);\n' +
             '        }\n' +
-            '        outDiv.innerText = "⏳ [Hệ thống] Đang kết nối lõi Console...";\n' +
+            '        outDiv.innerText = "⏳ Khởi tạo Console...";\n' +
             '    }\n' +
             '    \n' +
             '    try {\n' +
             '        let pyodide = await loadPyodide();\n' +
             '        \n' +
-            '        // Cấu hình luồng hứng dữ liệu dựa theo chế độ Switch Bật/Tắt\n' +
+            '        // Cấu hình luồng xuất dữ liệu thông minh\n' +
             '        pyodide.setStdout({ batched: (msg) => {\n' +
             '            if(mode === "on" && outDiv) {\n' +
-            '                if(outDiv.innerText.includes("Đang chờ") || outDiv.innerText.includes("khởi tạo") || outDiv.innerText.includes("kết nối")) outDiv.innerText = "";\n' +
-            '                outDiv.innerText += "[LOG]: " + msg + "\\n";\n' + // Ghi lại hành động log rõ ràng
+            '                if(outDiv.innerText.includes("⏳") || outDiv.innerText.includes("Đang")) outDiv.innerText = "";\n' +
+            '                outDiv.innerText += "[LOG]: " + msg + "\\n";\n' +
             '            } else {\n' +
-            '                // Khi tắt Console, kết quả lệnh print() sẽ xuất trực tiếp ngầm lên console trình duyệt\n' +
-            '                console.log("%c[Python Screen Run]: " + msg, "color: #2ecc71; font-weight: bold;");\n' +
+            '                // FIX BUG: TẠO THÀNH PHẦN VĂN BẢN ĐỂ IN THẲNG RA MÀN HÌNH TRANG WEB CHỨ KHÔNG HIỆN HỘP ĐEN\n' +
+            '                const txtNode = document.createElement("p");\n' +
+            '                txtNode.style.cssText = "margin:10px 20px; font-family:sans-serif; font-size:16px; color:#333; text-align:left; white-space:pre-wrap;";\n' +
+            '                txtNode.innerText = msg;\n' +
+            '                document.body.appendChild(txtNode);\n' +
             '            }\n' +
             '        }});\n' +
             '        \n' +
@@ -63,7 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
             '        const bytes = Uint8Array.from(binStr, m => m.charCodeAt(0));\n' +
             '        const rawPy = new TextDecoder().decode(bytes);\n' +
             '        \n' +
-            '        if(mode === "on" && outDiv) outDiv.innerText = "⏳ [Hệ thống] Quét gói thư viện...";\n' +
+            '        if(mode === "on" && outDiv) outDiv.innerText = "⏳ Quét gói thư viện...";\n' +
             '        const matches = rawPy.match(/(?:^|\\n)\\s*(?:import|from)\\s+([a-zA-Z0-9_]+)/g) || [];\n' +
             '        let packages = [];\n' +
             '        matches.forEach(m => {\n' +
@@ -75,13 +77,17 @@ document.addEventListener("DOMContentLoaded", () => {
             '            if(mode === "on" && outDiv) outDiv.innerText = "⏳ Tải thư viện: " + packages.join(", ");\n' +
             '            await pyodide.loadPackage(packages);\n' +
             '        }\n' +
-            '        if(mode === "on" && outDiv) outDiv.innerText = "⏳ [Hệ thống] Đang thực thi đa lệnh...";\n' +
+            '        if(mode === "on" && outDiv) outDiv.innerText = "⏳ Đang chạy...";\n' +
             '        await pyodide.runPythonAsync(rawPy);\n' +
             '    } catch(err) {\n' +
             '        if(mode === "on" && outDiv) {\n' +
             '            outDiv.innerHTML = "<span style=\'color:#ff4a4a\'>❌ Lỗi biên dịch:\\n" + err + "</span>";\n' +
             '        } else {\n' +
-            '            console.error("Lỗi chạy ẩn Python: ", err);\n' +
+            '            // Hiển thị lỗi sạch sẽ ra màn hình nếu chạy ẩn bị lỗi\n' +
+            '            const errDiv = document.createElement("div");\n' +
+            '            errDiv.style.cssText = "color:red; margin:20px; font-weight:bold;";\n' +
+            '            errDiv.innerText = "❌ Lỗi Python: " + err;\n' +
+            '            document.body.appendChild(errDiv);\n' +
             '        }\n' +
             '    }\n' +
             '}\n' +
@@ -124,7 +130,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            const tieuDe = tenWeb === "" ? "Website Tự Tạo" : tenWeb;
+            const tieuDe = tenWeb === "" ? "Website Tự Tạo" : tieuDe;
             const codeDaTron = trộnCode(tieuDe, html, css, js, py, consoleMode);
 
             try {
