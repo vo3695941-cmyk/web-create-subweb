@@ -23,7 +23,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+\$/, '');
     }
 
-    // CẬP NHẬT: Xử lý in thẳng ra trang web khi tắt console, sửa lỗi dính chữ trạng thái
     function sinhScriptPython(codePy, consoleMode) {
         const base64Python = encodeDataSafe(codePy);
         
@@ -46,19 +45,14 @@ document.addEventListener("DOMContentLoaded", () => {
             '    try {\n' +
             '        let pyodide = await loadPyodide();\n' +
             '        \n' +
-            '        // Cấu hình luồng xuất dữ liệu thông minh\n' +
-            '        pyodide.setStdout({ batched: (msg) => {\n' +
-            '            if(mode === "on" && outDiv) {\n' +
-            '                if(outDiv.innerText.includes("⏳") || outDiv.innerText.includes("Đang")) outDiv.innerText = "";\n' +
-            '                outDiv.innerText += "[LOG]: " + msg + "\\n";\n' +
-            '            } else {\n' +
-            '                // FIX BUG: TẠO THÀNH PHẦN VĂN BẢN ĐỂ IN THẲNG RA MÀN HÌNH TRANG WEB CHỨ KHÔNG HIỆN HỘP ĐEN\n' +
-            '                const txtNode = document.createElement("p");\n' +
-            '                txtNode.style.cssText = "margin:10px 20px; font-family:sans-serif; font-size:16px; color:#333; text-align:left; white-space:pre-wrap;";\n' +
-            '                txtNode.innerText = msg;\n' +
-            '                document.body.appendChild(txtNode);\n' +
-            '            }\n' +
-            '        }});\n' +
+            '        // Gọi hàm cấu hình luồng xuất đồng bộ từ file preview.html gửi sang\n' +
+            '        if(typeof window.parent.cauHinhPyodideStdout === "function") {\n' +
+            '            window.parent.cauHinhPyodideStdout(pyodide, mode);\n' +
+            '        } else if(typeof window.cauHinhPyodideStdout === "function") {\n' +
+            '            window.cauHinhPyodideStdout(pyodide, mode);\n' +
+            '        } else {\n' +
+            '            pyodide.setStdout({ batched: (msg) => { console.log(msg); } });\n' +
+            '        }\n' +
             '        \n' +
             '        const b64 = "' + base64Python + '";\n' +
             '        const binStr = atob(b64.replace(/-/g, "+").replace(/_/g, "/"));\n' +
@@ -69,7 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
             '        const matches = rawPy.match(/(?:^|\\n)\\s*(?:import|from)\\s+([a-zA-Z0-9_]+)/g) || [];\n' +
             '        let packages = [];\n' +
             '        matches.forEach(m => {\n' +
-            '            const p = m.replace(/\\n/g, "").replace("import", "").replace("from", "").trim().split(/\\s+/)[0];\n' +
+            '            const p = m.replace(/\\n/g, "").replace("import", "").replace("from", "").trim().split(/\\s+/);\n' +
             '            const builtIns = ["math","sys","os","json","re","time","random","datetime","collections","itertools"];\n' +
             '            if(p && !builtIns.includes(p) && !packages.includes(p)) packages.push(p);\n' +
             '        });\n' +
@@ -79,13 +73,17 @@ document.addEventListener("DOMContentLoaded", () => {
             '        }\n' +
             '        if(mode === "on" && outDiv) outDiv.innerText = "⏳ Đang chạy...";\n' +
             '        await pyodide.runPythonAsync(rawPy);\n' +
+            '        \n' +
+            '        const finalStatus = document.getElementById("py-sys-status");\n' +
+            '        if(finalStatus) finalStatus.remove();\n' +
             '    } catch(err) {\n' +
+            '        const finalStatus = document.getElementById("py-sys-status");\n' +
+            '        if(finalStatus) finalStatus.remove();\n' +
             '        if(mode === "on" && outDiv) {\n' +
             '            outDiv.innerHTML = "<span style=\'color:#ff4a4a\'>❌ Lỗi biên dịch:\\n" + err + "</span>";\n' +
             '        } else {\n' +
-            '            // Hiển thị lỗi sạch sẽ ra màn hình nếu chạy ẩn bị lỗi\n' +
             '            const errDiv = document.createElement("div");\n' +
-            '            errDiv.style.cssText = "color:red; margin:20px; font-weight:bold;";\n' +
+            '            errDiv.style.cssText = "color:red; margin:20px; font-weight:bold; text-align:left;";\n' +
             '            errDiv.innerText = "❌ Lỗi Python: " + err;\n' +
             '            document.body.appendChild(errDiv);\n' +
             '        }\n' +
@@ -130,7 +128,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            const tieuDe = tenWeb === "" ? "Website Tự Tạo" : tieuDe;
+            const tieuDe = tenWeb === "" ? "Website Tự Tạo" : tenWeb;
             const codeDaTron = trộnCode(tieuDe, html, css, js, py, consoleMode);
 
             try {
