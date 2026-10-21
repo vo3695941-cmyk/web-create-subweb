@@ -14,7 +14,7 @@
     <div id="loader" class="loading">⏳ Đang giải nén cấu trúc website con...</div>
 
     <script>
-        document.addEventListener("DOMContentLoaded", async () => {
+        document.addEventListener("DOMContentLoaded", () => {
             const urlParams = new URLSearchParams(window.location.search);
             const webData = urlParams.get('web');
 
@@ -25,45 +25,10 @@
                     const bytes = Uint8Array.from(binString, (m) => m.charCodeAt(0));
                     const decodedHtml = new TextDecoder().decode(bytes);
                     
-                    // 2. Dựng giao diện trang web con lên màn hình
+                    // 2. Ghi đè toàn bộ nội dung mã nguồn gốc lên màn hình
                     document.open();
                     document.write(decodedHtml);
                     document.close();
-
-                    // FIX LỖI TRẮNG MÀN HÌNH: Khởi chạy luồng hứng dữ liệu Python ngay lập tức sau khi dựng DOM
-                    const outDiv = document.getElementById('python-output');
-                    
-                    // Kiểm tra nếu ở chế độ TẮT Console (Không có thẻ #python-output)
-                    if (!outDiv && typeof loadPyodide === "function") {
-                        const sysStatus = document.createElement("div");
-                        sysStatus.id = "py-sys-status";
-                        sysStatus.style.cssText = "position:fixed; top:10px; right:10px; padding:8px 12px; background:rgba(0,0,0,0.8); color:#fff; font-size:12px; border-radius:4px; z-index:99999; font-family:sans-serif;";
-                        sysStatus.innerText = "⏳ Đang nạp Python...";
-                        document.body.appendChild(sysStatus);
-                    }
-
-                    // Định nghĩa hàm liên kết luồng xuất cho Pyodide khi chạy ngầm
-                    window.cauHinhPyodideStdout = function(pyodideInstance, mode) {
-                        pyodideInstance.setStdout({
-                            batched: (msg) => {
-                                const outputBox = document.getElementById('python-output');
-                                if (outputBox) {
-                                    // Chế độ BẬT Console: Ghi vào hộp đen Terminal
-                                    if (outputBox.innerText.includes('⏳') || outputBox.innerText.includes('Khởi tạo') || outputBox.innerText.includes('Quét')) {
-                                        outputBox.innerText = '';
-                                    }
-                                    outputBox.innerText += '[LOG]: ' + msg + '\n';
-                                } else {
-                                    // Chế độ TẮT Console: In trực tiếp văn bản vào document.body
-                                    const txtNode = document.createElement("p");
-                                    txtNode.style.cssText = "margin:10px 20px; font-family:sans-serif; font-size:16px; color:#333; text-align:left; white-space:pre-wrap;";
-                                    txtNode.innerText = msg;
-                                    document.body.appendChild(txtNode);
-                                }
-                            }
-                        });
-                    };
-
                 } catch (e) {
                     console.error("Lỗi dựng trang: ", e);
                     document.body.innerHTML = `<h2 style="color:#e74c3c; text-align:center; padding-top:50px;">❌ Lỗi: Không thể khởi dựng mã HTML!</h2>`;
