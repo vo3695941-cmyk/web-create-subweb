@@ -70,8 +70,8 @@ document.addEventListener("DOMContentLoaded", () => {
         
         if (py.length > 0) {
             // Chỉ nhúng duy nhất bộ đôi liên kết tài nguyên của hệ thống PyScript phiên bản mới
-            fileHoanChinh += '<link rel="stylesheet" href="https://pyscript.net" />\n';
-            fileHoanChinh += '<script type="module" src="https://pyscript.net"><\/script>\n';
+            fileHoanChinh += '<link rel="stylesheet" href="https://pyscript.net/releases/2025.3.1/core.css" />\n';
+            fileHoanChinh += '<script type="module" src="https://pyscript.net/releases/2025.3.1/core.js"><\/script>\n';
         }
         
         if (css.length > 0) { fileHoanChinh += '<style>\n' + css + '\n</style>\n'; }
