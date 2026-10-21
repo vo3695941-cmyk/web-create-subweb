@@ -6,8 +6,14 @@
     <title>Trình Tạo Web Đa Ngôn Ngữ Siêu Nén</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 15px; background: #f5f7fb; color: #333; }
-        .container { max-width: 750px; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin: 0 auto; }
-        h1 { text-align: center; color: #2c3e50; font-size: 22px; margin-bottom: 5px; }
+        .container { max-width: 750px; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin: 0 auto; position: relative; }
+        
+        .header-box { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+        h1 { margin: 0; color: #2c3e50; font-size: 28px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+        
+        .btn-docs { padding: 6px 14px; background: #34495e; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px; transition: 0.2s; }
+        .btn-docs:hover { background: #2c3e50; }
+        
         .subtitle { text-align: center; color: #7f8c8d; font-size: 13px; margin-bottom: 20px; }
         .form-group { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 6px; color: #34495e; font-size: 14px; }
@@ -15,23 +21,32 @@
         textarea:focus, input[type="text"]:focus { border-color: #2ecc71; background: #fff; outline: none; }
         input[type="text"], select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
         
-        /* Định dạng riêng cho công tắc Console */
         .toggle-container { display: flex; align-items: center; justify-content: space-between; background: #ebf5fb; padding: 12px; border-radius: 4px; border: 1px solid #aed6f1; margin-bottom: 15px; }
         .toggle-label { font-weight: bold; color: #2980b9; font-size: 14px; }
         
-        button { width: 100%; padding: 15px; background: #2ecc71; color: white; border: none; border-radius: 4px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; -webkit-appearance: none; }
-        button:active { background: #27ae60; }
+        button.btn-main { width: 100%; padding: 15px; background: #2ecc71; color: white; border: none; border-radius: 4px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; -webkit-appearance: none; }
+        button.btn-main:active { background: #27ae60; }
         #result-box { margin-top: 20px; padding: 15px; background: #e8f8f5; border: 1px solid #a3e4d7; border-radius: 4px; display: none; }
         .link-output { width: 100%; padding: 12px; background: #fff; border: 1px solid #ddd; margin: 8px 0; font-family: monospace; font-size: 13px; box-sizing: border-box; }
         .btn-group { display: flex; gap: 10px; margin-top: 10px; }
         .btn-test { background: #3498db; text-align: center; text-decoration: none; color: white; padding: 12px; border-radius: 4px; flex: 1; font-weight: bold; font-size: 15px; }
         #preview-zone { margin-top: 25px; display: none; border: 2px dashed #e67e22; padding: 15px; background: #fff; border-radius: 4px; }
         #preview-iframe { width: 100%; height: 400px; border: 1px solid #ddd; background: #fff; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 10000; padding: 15px; box-sizing: border-box; }
+        .modal-box { background: white; padding: 20px; border-radius: 6px; max-width: 550px; width: 100%; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.2); text-align: left; }
+        .modal-box h2 { margin-top: 0; color: #2c3e50; font-size: 20px; border-bottom: 2px solid #eee; padding-bottom: 8px; }
+        .modal-content { font-size: 14px; line-height: 1.6; color: #555; }
+        .btn-close-docs { margin-top: 15px; padding: 10px 20px; background: #e74c3c; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; float: right; }
+        .btn-close-docs:hover { background: #c0392b; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🛠️ Trình Biến Code Thành Link Siêu Nén</h1>
+        <div class="header-box">
+            <h1>eopo</h1>
+            <button type="button" id="btn-open-docs" class="btn-docs">docs</button>
+        </div>
         <div class="subtitle">Môi trường thực thi đa ngôn ngữ phiên bản nâng cao</div>
         
         <div class="form-group">
@@ -59,7 +74,6 @@
             <textarea id="web-py" placeholder="print('Xin chào bro!')"></textarea>
         </div>
 
-        <!-- TÍNH NĂNG MỚI: Bật/Tắt chế độ Console -->
         <div class="toggle-container">
             <span class="toggle-label">🖥️ Chế độ thực thi mã Python:</span>
             <select id="console-toggle" style="width: auto; padding: 6px 12px;">
@@ -68,7 +82,7 @@
             </select>
         </div>
 
-        <button type="button" id="btn-export">🚀 Xuất Bản Web & Lấy Link Rút Gọn</button>
+        <button type="button" id="btn-export" class="btn-main">🚀 Xuất Bản Web & Lấy Link Rút Gọn</button>
         
         <div id="result-box">
             <p style="color: #1e8449; font-weight: bold; margin-top: 0;">🎉 Đã tạo liên kết thành công!</p>
@@ -84,6 +98,194 @@
             <iframe id="preview-iframe"></iframe>
         </div>
     </div>
+
+    <!-- KHU VỰC HỘP THOẠI ĐÃ ĐƯỢC THAY BẰNG THẺ H1 TRỐNG THEO YÊU CẦU -->
+    <div id="docs-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h2>Kiến thức & Tài liệu hướng dẫn</h2>
+            <div class="modal-content">
+                <h1>Docs — Phân tích weboooppp
+Tài liệu phân tích giao diện công khai và các đoạn mã mẫu chỉ để đọc. 
+Trang: https://vo3695941-cmyk.github.io/weboooppp/
+1. Tổng quan
+Trang có các khu vực nhập HTML, CSS, JavaScript, Python (alpha), tùy chọn thực thi Python, nút xuất bản và vùng xem trước. Đây là mô tả giao diện quan sát được; chưa có đủ mã nguồn gốc để xác nhận toàn bộ cách xử lý nội bộ.
+2. Các khu vực
+HTML: cấu trúc trang, tiêu đề, đoạn văn, biểu mẫu và nút.
+CSS: màu sắc, phông chữ, khoảng cách, đường viền và bố cục thích ứng.
+JavaScript: xử lý sự kiện và tương tác.
+Python (alpha): khu vực nhập mã Python; cách chạy thực tế phụ thuộc bộ thực thi được tích hợp.
+Xuất bản / xem trước: hướng đến việc tạo liên kết và xem thử. Chưa thể xác nhận cách lưu dữ liệu hoặc tạo URL nếu chưa kiểm tra mã nguồn.
+3. Quy trình dự kiến
+Nhập tiêu đề và mã theo ngôn ngữ.
+Trang xử lý hoặc ghép dữ liệu.
+Xem trước kết quả.
+Xuất bản và tạo liên kết, nếu tính năng hoạt động như giao diện mô tả.
+Đây là quy trình suy ra từ giao diện, không phải xác nhận về triển khai bên trong.
+4. Mẫu HTML — chỉ để đọc
+<!--
+MẪU 1: Tiêu đề và đoạn văn
+<h1>Ứng dụng của tôi</h1>
+<p>Đây là nội dung giới thiệu.</p>
+
+MẪU 2: Nút bấm
+<button type="button">Bắt đầu</button>
+
+MẪU 3: Khu vực kết quả
+<div id="result">Kết quả sẽ hiển thị tại đây</div>
+
+MẪU 4: Biểu mẫu
+<form>
+    <label for="username">Tên người dùng:</label>
+    <input id="username" type="text">
+    <button type="button">Xác nhận</button>
+</form>
+-->
+Phân tích: h1 tạo tiêu đề, p tạo đoạn văn, button tạo nút, div gom nội dung và input nhận dữ liệu. Toàn bộ ví dụ nằm trong chú thích HTML nên không được trình duyệt hiển thị như thành phần giao diện.
+5. Mẫu CSS — chỉ để đọc
+/*
+MẪU 1: Màu nền
+body {
+    background: #101522;
+    color: white;
+    font-family: Arial, sans-serif;
+}
+
+MẪU 2: Nút bấm
+button {
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: none;
+}
+
+MẪU 3: Khung nội dung
+.panel {
+    padding: 16px;
+    margin: 12px;
+    border: 1px solid #555;
+    border-radius: 12px;
+}
+
+MẪU 4: Tương thích điện thoại
+@media (max-width: 600px) {
+    .panel {
+        margin: 6px;
+        padding: 10px;
+    }
+}
+*/
+Phân tích: CSS điều khiển màu nền, kiểu chữ, khoảng cách, đường viền và cách bố trí trên màn hình nhỏ.
+6. Mẫu JavaScript — chỉ để đọc
+// MẪU 1: Biến tiêu đề
+// const appTitle = "Ứng dụng của tôi";
+
+// MẪU 2: Hàm tính tổng
+// function add(a, b) {
+//     return a + b;
+// }
+
+// MẪU 3: Kiểm tra chuỗi
+// function checkText(text) {
+//     return typeof text === "string" && text.length > 0;
+// }
+
+// MẪU 4: Đăng ký sự kiện nút
+// document.querySelector("#myButton")
+//     ?.addEventListener("click", () => {
+//         console.log("Đã nhận sự kiện");
+//     });
+
+// MẪU 5: Kiểm tra phần tử
+// const output = document.querySelector("#result");
+// console.log(output ? "Đã tìm thấy" : "Chưa tìm thấy");
+Phân tích: const khai báo biến, function định nghĩa hàm, return trả kết quả, addEventListener đăng ký sự kiện và console.log ghi thông tin vào bảng điều khiển. Mỗi dòng được chú thích nên không thực thi.
+7. Mẫu Python — chỉ để đọc
+# MẪU 1: Biến
+# app_name = "Ứng dụng của tôi"
+
+# MẪU 2: Hàm tính tổng
+# def add(a, b):
+#     return a + b
+
+# MẪU 3: Kiểm tra kiểu dữ liệu
+# def is_text(value):
+#     return isinstance(value, str)
+
+# MẪU 4: Danh sách
+# items = ["HTML", "CSS", "JavaScript", "Python"]
+
+# MẪU 5: Duyệt danh sách
+# for item in items:
+#     print(item)
+Phân tích: Các mẫu minh họa biến, hàm, kiểm tra kiểu dữ liệu và danh sách. Mọi dòng đều có # ở đầu nên là chú thích Python.
+8. Mẫu mô tả dữ liệu dự án bằng JavaScript
+Đây là ví dụ minh họa, không phải mã nguồn đã xác minh của trang.
+// const project = {
+//     title: "Trang thử nghiệm",
+//     html: "<h1>Xin chào</h1>",
+//     css: "h1 { color: blue; }",
+//     javascript: ""
+// };
+
+// const hasTitle = project.title.trim().length > 0;
+// const status = hasTitle ? "ready" : "missing-title";
+
+// Ghi chú: cần kiểm tra mã nguồn thực tế để biết trang tạo URL
+// bằng API, mã hóa dữ liệu hay một cơ chế khác.
+9. Mẫu mô tả dữ liệu dự án bằng Python
+# project = {
+#     "title": "Trang thử nghiệm",
+#     "html": "<h1>Xin chào</h1>",
+#     "css": "h1 { color: blue; }",
+#     "javascript": "",
+#     "python": ""
+# }
+
+# required_fields = ["title", "html", "css"]
+# missing_fields = [
+#     field for field in required_fields
+#     if not project.get(field)
+# ]
+10. Bảng tổng hợp
+Thành phần
+Vai trò
+Cần kiểm tra trong mã nguồn
+Tiêu đề
+Đặt tên trang
+Cách lấy giá trị nhập
+HTML
+Tạo cấu trúc
+Cách ghép nội dung
+CSS
+Thiết kế
+Cách áp dụng kiểu
+JavaScript
+Tương tác
+Cách chạy mã nhập vào
+Python
+Hỗ trợ Python
+Bộ thực thi tích hợp
+Xuất bản
+Tạo liên kết
+Cơ chế tạo và lưu URL
+Xem trước
+Hiển thị thử
+Cách cô lập nội dung
+11. Lưu ý bảo mật
+Không chạy mã lạ chỉ vì mã xuất hiện trong trang xem trước.
+Nếu ứng dụng thực thi mã do người dùng nhập, cần kiểm tra cơ chế cô lập và giới hạn quyền.
+Không suy đoán thư viện hoặc API khi chưa tìm thấy bằng chứng trong mã nguồn.
+Phân biệt rõ mã mẫu minh họa với mã nguồn thật của website.
+12. Nguồn tham khảo
+Trang cần phân tích: https://vo3695941-cmyk.github.io/weboooppp/
+MDN — Chú thích HTML: https://developer.mozilla.org/en-US/docs/Web/HTML/Guides/Comments
+MDN — JavaScript: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide
+Python — Hướng dẫn cơ bản: https://docs.python.org/3/tutorial/
+Kết luận: Tài liệu này tổng hợp giao diện quan sát được và các ví dụ an toàn để đọc. Để phân tích từng hàm thực tế, cần xem index.html, JavaScript và CSS gốc mà trang tải về.</h1>
+            </div>
+            <button type="button" id="btn-close-docs" class="btn-close-docs">Đóng</button>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>
