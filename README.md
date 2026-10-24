@@ -3,4 +3,4 @@
 # cách hoạt động 
 ### có ô html và script và css và python(python hoạt động khổng ổn định) nên vì vậy khi bấm xuất bản nó sẽ mã hóa gzip rồi mã hóa base64 giúp cắt giảm độ dài 
 ### và khi mã hóa nó sẽ tạo link là "https://vo3695941-cmyk.github.io/web-create-subweb/preview.html?web=" và phần mã hóa ở ?web= 
-### nên vì vậy link cũng dài tôi khuyên bạn nên xào web rút gọn link(ví dụ https://by.com.vn và https://tinyurl.vn/) để rút ngắn link cho đẹp mắt hơn và tôi không bắt buộc bạn làm điều đó
+### nên vì vậy link cũng dài tôi khuyên bạn nên xài web rút gọn link(ví dụ https://by.com.vn và https://tinyurl.vn/) để rút ngắn link cho đẹp mắt hơn và tôi không bắt buộc bạn làm điều đó
