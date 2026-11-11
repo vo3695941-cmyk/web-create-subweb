@@ -32,7 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const baseUrl = window.location.origin + window.location.pathname;
     const previewUrl = baseUrl.endsWith('/') ? baseUrl + 'preview.html' : baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1) + 'preview.html';
 
-    // Hàm mã hóa dữ liệu dạng chuỗi Base64 an toàn cho URL (Không dùng async chặn nút trên mobile)
+    // Hàm mã hóa Unicode sang Base64 an toàn cho URL (Không dùng async chặn luồng trên mobile)
     function encodeDataSafe(str) {
         const bytes = new TextEncoder().encode(str);
         const binString = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
@@ -40,41 +40,58 @@ document.addEventListener("DOMContentLoaded", () => {
         return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+\$/, '');
     }
 
-    // Cơ chế trộn logic đan trực tiếp thẻ Python tĩnh để PyScript quét trúng 100% ngay khi tải trang
+    // Cơ chế trộn logic sử dụng kỹ thuật Hook sys.stdout và thuộc tính terminal tĩnh
     function trộnCode(tieuDe, html, css, js, py, consoleMode) {
-        let fileHoanChinh = '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>' + tieuDe + '</title>\n';
-        
+        let result = '<!DOCTYPE html>\n<html>\n<head>\n';
+        result += '<meta charset="UTF-8">\n';
+        result += '<meta name="viewport" content="width=device-width, initial-scale=1">\n';
+        result += '<title>' + tieuDe + '</title>\n';
+
         if (py.length > 0) {
-            // Tích hợp bộ đôi liên kết tài nguyên PyScript chính thức phiên bản ổn định 2026.7.3
-            fileHoanChinh += '<link rel="stylesheet" href="https://pyscript.net/releases/2026.7.3/core.css" />\n';
-            fileHoanChinh += '<script type="module" src="https://pyscript.net/releases/2026.7.3/core.js"><\/script>\n';
+            // Nhúng bộ đôi liên kết tài nguyên PyScript v2026.7.3 chính thức
+            result += '<link rel="stylesheet" href="https://pyscript.net/releases/2026.7.3/core.css">\n';
+            result += '<script type="module" src="https://pyscript.net/releases/2026.7.3/core.js"><\/script>\n';
         }
-        
-        if (css.length > 0) { 
-            fileHoanChinh += '<style>\n' + css + '\n</style>\n'; 
+
+        if (css.length > 0) {
+            result += '<style>\n' + css + '\n</style>\n';
         }
-        
-        fileHoanChinh += '</head>\n<body>\n' + html + '\n';
-        
+
+        result += '</head>\n<body>\n';
+        result += html + '\n';
+
         if (py.length > 0) {
-            // Tạo phân vùng đích tĩnh trước khi nhúng mã thực thi để PyScript tìm thấy ID target lập tức
             if (consoleMode === "on") {
-                fileHoanChinh += '<div id="python-output" style="margin:20px; padding:15px; background:#1e1e1e; color:#00ff00; font-family:monospace; border-radius:5px; white-space:pre-wrap; text-align:left; box-shadow:0 4px 10px rgba(0,0,0,0.3); line-height:1.5;">⏳ Đang nạp môi trường Python...</div>\n';
-                // Nhúng cấu trúc thẻ tĩnh hướng luồng in chữ vào hộp đen Terminal tự động
-                fileHoanChinh += `<script type="py" target="python-output">\n${py}\n<\/script>\n`;
+                // CHẾ ĐỘ BẬT CONSOLE: Sử dụng giao diện Terminal chính thức của PyScript
+                result += '<script type="py" terminal>\n';
+                result += py + '\n';
+                result += '<\/script>\n';
             } else {
-                fileHoanChinh += '<div id="pyscript-screen-container" style="margin:10px 20px; font-family:sans-serif; font-size:16px; color:#333; text-align:left; white-space:pre-wrap;"></div>\n';
-                // Nhúng cấu trúc thẻ tĩnh hướng luồng in chữ trực tiếp thẳng vào document.body
-                fileHoanChinh += `<script type="py" target="pyscript-screen-container">\n${py}\n<\/script>\n`;
+                // CHẾ ĐỘ TẮT CONSOLE: Ép print() đổ thẳng vào trang web tĩnh bằng Python Writer Hook
+                result += '<div id="pyscript-screen-container" style="white-space:pre-wrap;margin:20px;font-family:monospace"></div>\n';
+
+                result += '<script type="py">\n';
+                result += 'import sys\n';
+                result += 'from js import document\n';
+                result += 'class Writer:\n';
+                result += '    def write(self, text):\n';
+                result += '        document.getElementById("pyscript-screen-container").textContent += text\n';
+                result += '        return len(text)\n';
+                result += '    def flush(self):\n';
+                result += '        pass\n';
+                result += 'sys.stdout = Writer()\n';
+                result += 'sys.stderr = Writer()\n';
+                result += py + '\n';
+                result += '<\/script>\n';
             }
         }
-        
-        if (js.length > 0) { 
-            fileHoanChinh += '<script>\n' + js + '\n<\/script>\n'; 
+
+        if (js.length > 0) {
+            result += '<script>\n' + js + '\n<\/script>\n';
         }
-        
-        fileHoanChinh += '</body>\n</html>';
-        return fileHoanChinh;
+
+        result += '</body>\n</html>';
+        return result;
     }
 
     // XỬ LÝ SỰ KIỆN KHI NGƯỜI DÙNG NHẤN NÚT XUẤT BẢN WEBSITE
@@ -96,7 +113,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const codeDaTron = trộnCode(tieuDe, html, css, js, py, consoleMode);
 
             try {
-                // Mã hóa chuỗi nén an toàn và kết xuất liên kết
                 const chuoiMaHoa = encodeDataSafe(codeDaTron);
                 const linkHoanChinh = previewUrl + '?web=' + chuoiMaHoa;
 
