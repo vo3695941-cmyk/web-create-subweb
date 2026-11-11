@@ -1,14 +1,23 @@
+
 document.addEventListener("DOMContentLoaded", () => {
+
+    // ==========================================
+    // CODE EDITOR - MAIN ELEMENTS
+    // ==========================================
+
     const btnExport = document.getElementById("btn-export");
     const webNameInput = document.getElementById("web-name");
     const webHtmlTextarea = document.getElementById("web-html");
     const webCssTextarea = document.getElementById("web-css");
     const webJsTextarea = document.getElementById("web-js");
     const webPyTextarea = document.getElementById("web-py");
+
     const consoleToggleSelect = document.getElementById("console-toggle");
+
     const resultBox = document.getElementById("result-box");
     const shortLinkInput = document.getElementById("short-link");
     const linkRun = document.getElementById("link-run");
+
     const btnPreviewLocal = document.getElementById("btn-preview-local");
     const previewZone = document.getElementById("preview-zone");
     const previewIframe = document.getElementById("preview-iframe");
@@ -17,133 +26,423 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnCloseDocs = document.getElementById("btn-close-docs");
     const docsModal = document.getElementById("docs-modal");
 
-    // Quản lý ẩn/hiện hộp thoại tài liệu docs
+    // ==========================================
+    // DOCUMENTATION MODAL
+    // ==========================================
+
     if (btnOpenDocs && docsModal) {
-        btnOpenDocs.addEventListener("click", () => { docsModal.style.display = "flex"; });
+        btnOpenDocs.addEventListener("click", () => {
+            docsModal.style.display = "flex";
+        });
     }
+
     if (btnCloseDocs && docsModal) {
-        btnCloseDocs.addEventListener("click", () => { docsModal.style.display = "none"; });
+        btnCloseDocs.addEventListener("click", () => {
+            docsModal.style.display = "none";
+        });
     }
+
     if (docsModal) {
-        docsModal.addEventListener("click", (e) => { if (e.target === docsModal) docsModal.style.display = "none"; });
+        docsModal.addEventListener("click", (e) => {
+            if (e.target === docsModal) {
+                docsModal.style.display = "none";
+            }
+        });
     }
 
-    // Khởi tạo cấu hình URL tương thích an toàn với môi trường GitHub Pages
-    const baseUrl = window.location.origin + window.location.pathname;
-    const previewUrl = baseUrl.endsWith('/') ? baseUrl + 'preview.html' : baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1) + 'preview.html';
+    // ==========================================
+    // URL CONFIGURATION
+    // ==========================================
 
-    // Hàm mã hóa Unicode sang Base64 an toàn cho URL (Không dùng async chặn luồng trên mobile)
-    function encodeDataSafe(str) {
+    const previewUrl = new URL(
+        "preview.html",
+        window.location.href
+    ).href;
+
+    const PYSCRIPT_VERSION = "2026.7.3";
+
+    // ==========================================
+    // UTF-8 BASE64 ENCODER
+    // ==========================================
+
+    function encodeBase64(str) {
         const bytes = new TextEncoder().encode(str);
-        const binString = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
-        const base64 = btoa(binString);
-        return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+\$/, '');
+
+        let binary = "";
+
+        for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+
+        return btoa(binary);
     }
 
-    // Cơ chế trộn logic sử dụng kỹ thuật Hook sys.stdout và thuộc tính terminal tĩnh
+    function encodeDataSafe(str) {
+        return encodeBase64(str)
+            .replace(/\+/g, "-")
+            .replace(/\//g, "_")
+            .replace(/=+$/, "");
+    }
+
+    // ==========================================
+    // HTML ESCAPER
+    // ==========================================
+
+    function escapeHTML(str) {
+        return String(str).replace(/[&<>"']/g, char => {
+            const map = {
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;"
+            };
+
+            return map[char];
+        });
+    }
+
+    // ==========================================
+    // PYTHON RUNNER GENERATOR
+    // ==========================================
+
+    function sinhPythonRunner(codePy, consoleMode) {
+
+        const pythonBase64 = encodeDataSafe(codePy);
+
+        let pythonCode = `
+import base64
+import sys
+import traceback
+
+source = base64.urlsafe_b64decode(
+    "${pythonBase64}" +
+    "=" * (-len("${pythonBase64}") % 4)
+).decode("utf-8")
+
+`;
+
+        // CONSOLE OFF:
+        // Redirect Python stdout/stderr into HTML.
+
+        if (consoleMode !== "on") {
+
+            pythonCode += `
+from js import document
+
+class OutputWriter:
+
+    def __init__(self, element_id):
+        self.element_id = element_id
+
+    def write(self, text):
+        element = document.getElementById(self.element_id)
+
+        if element:
+            element.textContent += str(text)
+
+        return len(text)
+
+    def flush(self):
+        pass
+
+    def isatty(self):
+        return False
+
+sys.stdout = OutputWriter("pyscript-screen-container")
+sys.stderr = OutputWriter("pyscript-screen-container")
+
+`;
+
+        }
+
+        // EXECUTE USER PYTHON CODE
+
+        pythonCode += `
+try:
+    exec(
+        compile(source, "<website-python>", "exec"),
+        globals()
+    )
+
+except Exception:
+    traceback.print_exc()
+`;
+
+        return pythonCode;
+    }
+
+    // ==========================================
+    // WEBSITE GENERATOR
+    // ==========================================
+
     function trộnCode(tieuDe, html, css, js, py, consoleMode) {
-        let result = '<!DOCTYPE html>\n<html>\n<head>\n';
-        result += '<meta charset="UTF-8">\n';
-        result += '<meta name="viewport" content="width=device-width, initial-scale=1">\n';
-        result += '<title>' + tieuDe + '</title>\n';
+
+        let fileHoanChinh = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHTML(tieuDe)}</title>
+`;
+
+        // ======================================
+        // PYSCRIPT LIBRARY
+        // ======================================
 
         if (py.length > 0) {
-            // Nhúng bộ đôi liên kết tài nguyên PyScript v2026.7.3 chính thức
-            result += '<link rel="stylesheet" href="https://pyscript.net/releases/2026.7.3/core.css">\n';
-            result += '<script type="module" src="https://pyscript.net/releases/2026.7.3/core.js"><\/script>\n';
+
+            fileHoanChinh += `
+<link rel="stylesheet"
+href="https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.css">
+
+<script type="module"
+src="https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.js"><\/script>
+`;
+
         }
+
+        // ======================================
+        // CSS
+        // ======================================
 
         if (css.length > 0) {
-            result += '<style>\n' + css + '\n</style>\n';
+
+            fileHoanChinh += `
+<style>
+${css}
+</style>
+`;
+
         }
 
-        result += '</head>\n<body>\n';
-        result += html + '\n';
+        fileHoanChinh += `
+</head>
+<body>
+
+${html}
+
+`;
+
+        // ======================================
+        // PYTHON OUTPUT
+        // ======================================
 
         if (py.length > 0) {
-            if (consoleMode === "on") {
-                // CHẾ ĐỘ BẬT CONSOLE: Sử dụng giao diện Terminal chính thức của PyScript
-                result += '<script type="py" terminal>\n';
-                result += py + '\n';
-                result += '<\/script>\n';
-            } else {
-                // CHẾ ĐỘ TẮT CONSOLE: Ép print() đổ thẳng vào trang web tĩnh bằng Python Writer Hook
-                result += '<div id="pyscript-screen-container" style="white-space:pre-wrap;margin:20px;font-family:monospace"></div>\n';
 
-                result += '<script type="py">\n';
-                result += 'import sys\n';
-                result += 'from js import document\n';
-                result += 'class Writer:\n';
-                result += '    def write(self, text):\n';
-                result += '        document.getElementById("pyscript-screen-container").textContent += text\n';
-                result += '        return len(text)\n';
-                result += '    def flush(self):\n';
-                result += '        pass\n';
-                result += 'sys.stdout = Writer()\n';
-                result += 'sys.stderr = Writer()\n';
-                result += py + '\n';
-                result += '<\/script>\n';
+            if (consoleMode === "on") {
+
+                // Native PyScript terminal.
+                fileHoanChinh += `
+<script type="py" terminal>
+${sinhPythonRunner(py, "on")}
+<\/script>
+`;
+
+            } else {
+
+                // HTML output container.
+                fileHoanChinh += `
+<div id="pyscript-screen-container"
+style="
+margin:20px;
+padding:15px;
+background:#f1f5f9;
+color:#222;
+font-family:monospace;
+font-size:14px;
+border-radius:8px;
+white-space:pre-wrap;
+overflow-wrap:anywhere;
+">
+Đang khởi tạo Python...
+</div>
+
+<script type="py">
+${sinhPythonRunner(py, "off")}
+<\/script>
+`;
+
             }
+
         }
+
+        // ======================================
+        // JAVASCRIPT
+        // ======================================
 
         if (js.length > 0) {
-            result += '<script>\n' + js + '\n<\/script>\n';
+
+            fileHoanChinh += `
+<script>
+${js}
+<\/script>
+`;
+
         }
 
-        result += '</body>\n</html>';
-        return result;
+        fileHoanChinh += `
+</body>
+</html>
+`;
+
+        return fileHoanChinh;
     }
 
-    // XỬ LÝ SỰ KIỆN KHI NGƯỜI DÙNG NHẤN NÚT XUẤT BẢN WEBSITE
-    if (btnExport) {
-        btnExport.addEventListener("click", () => {
-            const tenWeb = webNameInput ? webNameInput.value.trim() : "";
-            const html = webHtmlTextarea ? webHtmlTextarea.value.trim() : "";
-            const css = webCssTextarea ? webCssTextarea.value.trim() : "";
-            const js = webJsTextarea ? webJsTextarea.value.trim() : "";
-            const py = webPyTextarea ? webPyTextarea.value.trim() : "";
-            const consoleMode = consoleToggleSelect ? consoleToggleSelect.value : "on";
+    // ==========================================
+    // GET EDITOR VALUES
+    // ==========================================
 
-            if (html === "" && css === "" && js === "" && py === "") {
-                alert("Vui lòng nhập nội dung vào ít nhất một ô mã nguồn!");
+    function getEditorData() {
+
+        return {
+
+            tenWeb: webNameInput
+                ? webNameInput.value.trim()
+                : "",
+
+            html: webHtmlTextarea
+                ? webHtmlTextarea.value
+                : "",
+
+            css: webCssTextarea
+                ? webCssTextarea.value
+                : "",
+
+            js: webJsTextarea
+                ? webJsTextarea.value
+                : "",
+
+            py: webPyTextarea
+                ? webPyTextarea.value
+                : "",
+
+            consoleMode: consoleToggleSelect
+                ? consoleToggleSelect.value
+                : "on"
+
+        };
+
+    }
+
+    // ==========================================
+    // EXPORT WEBSITE
+    // ==========================================
+
+    if (btnExport) {
+
+        btnExport.addEventListener("click", () => {
+
+            const data = getEditorData();
+
+            if (
+                !data.html.trim() &&
+                !data.css.trim() &&
+                !data.js.trim() &&
+                !data.py.trim()
+            ) {
+
+                alert("Vui lòng nhập ít nhất một đoạn mã!");
+
                 return;
             }
 
-            const tieuDe = tenWeb === "" ? "Website Tự Tạo" : tenWeb;
-            const codeDaTron = trộnCode(tieuDe, html, css, js, py, consoleMode);
+            const title = data.tenWeb || "Website Tự Tạo";
+
+            const completeHTML = trộnCode(
+                title,
+                data.html,
+                data.css,
+                data.js,
+                data.py,
+                data.consoleMode
+            );
 
             try {
-                const chuoiMaHoa = encodeDataSafe(codeDaTron);
-                const linkHoanChinh = previewUrl + '?web=' + chuoiMaHoa;
 
-                if (shortLinkInput) shortLinkInput.value = linkHoanChinh;
-                if (linkRun) linkRun.href = linkHoanChinh;
-                if (resultBox) resultBox.style.display = "block";
-                if (previewZone) previewZone.style.display = "none";
+                const encoded = encodeDataSafe(completeHTML);
+
+                const finalURL = previewUrl + "?web=" + encoded;
+
+                if (shortLinkInput) {
+                    shortLinkInput.value = finalURL;
+                }
+
+                if (linkRun) {
+                    linkRun.href = finalURL;
+                }
+
+                if (resultBox) {
+                    resultBox.style.display = "block";
+                }
+
+                if (previewZone) {
+                    previewZone.style.display = "none";
+                }
+
             } catch (error) {
-                alert("Lỗi xử lý đóng gói liên kết: " + error.message);
+
+                alert(
+                    "Lỗi đóng gói website: " + error.message
+                );
+
             }
+
         });
+
     }
 
-    // CƠ CHẾ KHỞI CHẠY XEM TRƯỚC TẠI CHỖ QUA PHÂN KHU IFRAME CÔ LẬP
+    // ==========================================
+    // LOCAL PREVIEW
+    // ==========================================
+
     if (btnPreviewLocal) {
+
         btnPreviewLocal.addEventListener("click", () => {
-            const tieuDe = (webNameInput ? webNameInput.value.trim() : "") || "Xem thử";
-            const html = webHtmlTextarea ? webHtmlTextarea.value.trim() : "";
-            const css = webCssTextarea ? webCssTextarea.value.trim() : "";
-            const js = webJsTextarea ? webJsTextarea.value.trim() : "";
-            const py = webPyTextarea ? webPyTextarea.value.trim() : "";
-            const consoleMode = consoleToggleSelect ? consoleToggleSelect.value : "on";
-            
-            if (previewZone && previewIframe) {
-                previewZone.style.display = "block";
-                const doc = previewIframe.contentWindow.document;
-                doc.open();
-                doc.write(trộnCode(tieuDe, html, css, js, py, consoleMode));
-                doc.close();
-                previewZone.scrollIntoView({ behavior: 'smooth' });
+
+            const data = getEditorData();
+
+            const title = data.tenWeb || "Xem thử";
+
+            if (!previewZone || !previewIframe) {
+                alert("Không tìm thấy vùng xem trước!");
+                return;
             }
+
+            try {
+
+                const completeHTML = trộnCode(
+                    title,
+                    data.html,
+                    data.css,
+                    data.js,
+                    data.py,
+                    data.consoleMode
+                );
+
+                previewZone.style.display = "block";
+
+                const doc = previewIframe.contentWindow.document;
+
+                doc.open();
+                doc.write(completeHTML);
+                doc.close();
+
+                previewZone.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start"
+                });
+
+            } catch (error) {
+
+                alert(
+                    "Lỗi xem trước: " + error.message
+                );
+
+            }
+
         });
+
     }
+
 });
