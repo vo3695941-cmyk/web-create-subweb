@@ -74,8 +74,8 @@ document.addEventListener("DOMContentLoaded", () => {
         let fileHoanChinh = '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>' + tieuDe + '</title>\n';
         
         if (py.length > 0) {
-            fileHoanChinh += '<link rel="stylesheet" href="https://pyscript.net/releases/2025.3.1/core.css" />\n';
-            fileHoanChinh += '<script type="module" src="https://pyscript.net/releases/2025.3.1/core.js"><\/script>\n';
+            fileHoanChinh += '<link rel="stylesheet" href="https://pyscript.net/releases/2026.7.3/core.css" />\n';
+            fileHoanChinh += '<script type="module" src="https://pyscript.net/releases/2026.7.3/core.js"><\/script>\n';
         }
         
         if (css.length > 0) { fileHoanChinh += '<style>\n' + css + '\n</style>\n'; }
