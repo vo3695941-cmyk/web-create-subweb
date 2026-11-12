@@ -149,9 +149,8 @@ class OutputWriter:
     def isatty(self):
         return False
 
-sys.stdout = OutputWriter("pyscript-screen-container")
-sys.stderr = OutputWriter("pyscript-screen-container")
-
+sys.stdout = OutputWriter("pyscript-console")
+sys.stderr = OutputWriter("pyscript-console")
 `;
 
         }
@@ -243,20 +242,19 @@ ${sinhPythonRunner(py, "on")}
 
                 // HTML output container.
                 fileHoanChinh += `
-<div id="pyscript-screen-container"
+<div id="pyscript-console"
 style="
-margin:20px;
+background:#111827;
+color:#00ff88;
 padding:15px;
-background:#f1f5f9;
-color:#222;
-font-family:monospace;
-font-size:14px;
+margin:15px;
 border-radius:8px;
+font-family:monospace;
 white-space:pre-wrap;
 overflow-wrap:anywhere;
 ">
-Đang khởi tạo Python...
 </div>
+
 
 <script type="py">
 ${sinhPythonRunner(py, "off")}
