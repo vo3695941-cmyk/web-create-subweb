@@ -193,10 +193,10 @@ except Exception:
 
             fileHoanChinh += `
 <link rel="stylesheet"
-href="https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.css">
+href="https://pyscript.net/releases/2026.7.3/core.css">
 
 <script type="module"
-src="https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.js"><\/script>
+src="">https://pyscript.net/releases/2026.7.3/core.js<\/script>
 `;
 
         }
