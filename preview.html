@@ -3,38 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đang tải trang web con...</title>
+    <title>Đang tải trang web...</title>
     <style>
         body { font-family: sans-serif; text-align: center; padding-top: 50px; background: #f5f7fb; color: #333; }
-        .loading { font-size: 18px; color: #7f8c8d; }
+        .loading { font-size: 16px; color: #7f8c8d; }
     </style>
 </head>
 <body>
-
-    <div id="loader" class="loading">⏳ Đang giải nén cấu trúc website con...</div>
+    <div id="loader" class="loading">⏳ Đang giải nén và khởi tạo trang web...</div>
 
     <script>
+        // Bộ giải nén LZW tương ứng với script.js
+        function decompressLZW(base64Url) {
+            let b64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+            while (b64.length % 4) b64 += "=";
+            const bin = atob(b64);
+            
+            let compressed = [];
+            for (let i = 0; i < bin.length; i += 2) {
+                compressed.push((bin.charCodeAt(i) << 8) | bin.charCodeAt(i + 1));
+            }
+
+            let dict = new Map();
+            for (let i = 0; i < 256; i++) dict.set(i, String.fromCharCode(i));
+
+            let w = String.fromCharCode(compressed[0]);
+            let result = w;
+            let dictSize = 256;
+
+            for (let i = 1; i < compressed.length; i++) {
+                let k = compressed[i];
+                let entry = dict.has(k) ? dict.get(k) : (k === dictSize ? w + w.charAt(0) : null);
+                if (entry === null) throw new Error("Dữ liệu nén bị hỏng");
+                result += entry;
+                dict.set(dictSize++, w + entry.charAt(0));
+                w = entry;
+            }
+
+            const bytes = new Uint8Array(result.length);
+            for (let i = 0; i < result.length; i++) bytes[i] = result.charCodeAt(i);
+            return new TextDecoder().decode(bytes);
+        }
+
         document.addEventListener("DOMContentLoaded", () => {
             const urlParams = new URLSearchParams(window.location.search);
-            const webData = urlParams.get('web');
+            const zData = urlParams.get('z');
 
-            if (webData) {
-                try {
-                    // 1. Giải mã an toàn chuỗi dữ liệu gốc
-                    const binString = atob(webData.replace(/-/g, '+').replace(/_/g, '/'));
-                    const bytes = Uint8Array.from(binString, (m) => m.charCodeAt(0));
-                    const decodedHtml = new TextDecoder().decode(bytes);
-                    
-                    // 2. Ghi đè toàn bộ nội dung mã nguồn gốc lên màn hình
-                    document.open();
-                    document.write(decodedHtml);
-                    document.close();
-                } catch (e) {
-                    console.error("Lỗi dựng trang: ", e);
-                    document.body.innerHTML = `<h2 style="color:#e74c3c; text-align:center; padding-top:50px;">❌ Lỗi: Không thể khởi dựng mã HTML!</h2>`;
+            if (!zData) {
+                document.body.innerHTML = `<h3 style="color:#e74c3c; text-align:center; padding-top:50px;">⚠️ Không tìm thấy dữ liệu trang web!</h3>`;
+                return;
+            }
+
+            try {
+                // 1. Giải nén lấy lại Object dữ liệu gốc {t, h, c, j, p, m}
+                const data = JSON.parse(decompressLZW(zData));
+                const title = data.t || "Website Tự Tạo";
+
+                // 2. Tự động đan phần vỏ bọc Pyodide v0.27.7 nếu có mã Python
+                let pyRunner = "";
+                if (data.p && data.p.trim().length > 0) {
+                    const pyB64 = btoa(String.fromCharCode(...new TextEncoder().encode(data.p)));
+                    pyRunner = `
+<script type="module">
+(async () => {
+    const mode = "${data.m}";
+    let outDiv = document.getElementById("python-output");
+    if (!outDiv) {
+        outDiv = document.createElement("div");
+        outDiv.id = "python-output";
+        outDiv.style.cssText = mode === "on" 
+            ? "margin:20px; padding:15px; background:#1e1e1e; color:#00ff00; font-family:monospace; border-radius:8px; white-space:pre-wrap; text-align:left; box-shadow:0 4px 10px rgba(0,0,0,0.3); line-height:1.5;"
+            : "margin:20px; padding:15px; background:#f8fafc; color:#1e293b; font-family:sans-serif; font-size:15px; border-radius:8px; white-space:pre-wrap; text-align:left; overflow-wrap:anywhere;";
+        document.body.appendChild(outDiv);
+    }
+    outDiv.innerText = "⏳ Đang nạp lõi Pyodide v0.27.7...";
+    try {
+        const { loadPyodide } = await import("https://jsdelivr.net");
+        const py = await loadPyodide();
+        globalThis.py = py;
+        globalThis.runPython = async (c) => await py.runPythonAsync(c);
+
+        const userCode = new TextDecoder().decode(Uint8Array.from(atob("${pyB64}"), c => c.charCodeAt(0)));
+        const matches = userCode.match(/(?:^|\\n)\\s*(?:import|from)\\s+([a-zA-Z0-9_]+)/g) || [];
+        let pkgs = [];
+        const builtIns = ["math","sys","os","json","re","time","random","datetime","collections","itertools","base64","traceback"];
+        matches.forEach(m => {
+            const p = m.replace(/\\n/g,"").replace("import","").replace("from","").trim().split(/\\s+/)[0];
+            if (p && !builtIns.includes(p) && !pkgs.includes(p)) pkgs.push(p);
+        });
+        if (pkgs.length > 0) {
+            outDiv.innerText = "⏳ Đang tải thư viện: " + pkgs.join(", ") + "...";
+            await py.loadPackage(pkgs);
+        }
+        let hasOut = false;
+        py.setStdout({ batched: (msg) => {
+            if (!hasOut) { outDiv.innerText = ""; hasOut = true; }
+            outDiv.textContent += (mode === "on" ? "[LOG]: " + msg + "\\n" : msg + "\\n");
+        }});
+        py.setStderr({ batched: (err) => {
+            if (!hasOut) { outDiv.innerText = ""; hasOut = true; }
+            outDiv.innerHTML += '<span style="color:#ef4444;">' + err + '\\n</span>';
+        }});
+        await py.runPythonAsync(userCode);
+        if (!hasOut) outDiv.remove();
+    } catch (e) {
+        outDiv.innerHTML = '<span style="color:#ef4444; font-weight:bold;">❌ Lỗi Python:\\n' + e + '</span>';
+    }
+})();
+<\/script>`;
                 }
-            } else {
-                document.body.innerHTML = `<h2 style="color:#e74c3c; text-align:center; padding-top:50px;">⚠️ Cảnh báo: Không tìm thấy dữ liệu trang web!</h2>`;
+
+                // 3. Dựng toàn bộ trang web hoàn chỉnh lên màn hình
+                const fullPage = `<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${title}</title><style>${data.c || ""}</style></head><body>${data.h || ""}${pyRunner}<script>${data.j || ""}<\/script></body></html>`;
+
+                document.open();
+                document.write(fullPage);
+                document.close();
+            } catch (e) {
+                document.body.innerHTML = `<h3 style="color:#e74c3c; text-align:center; padding-top:50px;">❌ Lỗi giải nén liên kết: ${e.message}</h3>`;
             }
         });
     </script>
