@@ -83,7 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     outDiv.innerText = "⏳ Đang nạp Pyodide v0.27.7...";
     try {
-        const { loadPyodide } = await import("https://jsdelivr.net");
+        const { loadPyodide } = await import("https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.mjs");
         const py = await loadPyodide();
         globalThis.py = py;
         globalThis.runPython = async (c) => await py.runPythonAsync(c);
